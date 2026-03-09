@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
+import { useLocale } from "@/lib/i18n";
 
 type BlockType = "user" | "assistant" | "tool_result";
 
@@ -12,6 +13,30 @@ interface ContextBlock {
   type: BlockType;
   label: string;
   tokens: number;
+}
+
+interface CompactCopy {
+  title: string;
+  contextWindow: string;
+  tokenUsage: string;
+  user: string;
+  assistant: string;
+  toolResult: string;
+  largestBlocks: string;
+  largestBlocksDesc: string;
+  microCompact: string;
+  autoCompact: string;
+  summary: string;
+  compactSummary: string;
+  microCompactDesc: string;
+  autoCompactDesc: string;
+  compactDesc: string;
+  stage1: string;
+  stage1Mode: string;
+  stage2: string;
+  stage2Mode: string;
+  stage3: string;
+  stage3Mode: string;
 }
 
 const BLOCK_COLORS: Record<BlockType, string> = {
@@ -46,6 +71,57 @@ function generateBlocks(count: number, seed: number): ContextBlock[] {
 const MAX_TOKENS = 100000;
 const WINDOW_HEIGHT = 350;
 
+const COPY: Record<string, CompactCopy> = {
+  en: {
+    title: "Three-Layer Context Compression",
+    contextWindow: "Context Window",
+    tokenUsage: "Token usage",
+    user: "user",
+    assistant: "assistant",
+    toolResult: "tool_result",
+    largestBlocks: "tool_results are the largest blocks",
+    largestBlocksDesc:
+      "File contents, command outputs, search results -- each one is thousands of tokens.",
+    microCompact: "MICRO-COMPACT",
+    autoCompact: "AUTO-COMPACT",
+    summary: "SUMMARY",
+    compactSummary: "COMPACT SUMMARY",
+    microCompactDesc: "Old tool_results shrunk to tiny summaries",
+    autoCompactDesc: "Full conversation compressed to summary block",
+    compactDesc: "Most aggressive compression -- near-empty context",
+    stage1: "Stage 1: Micro -- shrink old tool_results",
+    stage1Mode: "automatic",
+    stage2: "Stage 2: Auto -- summarize entire conversation",
+    stage2Mode: "at threshold",
+    stage3: "Stage 3: /compact -- user-triggered, deepest compression",
+    stage3Mode: "manual",
+  },
+  ru: {
+    title: "Трёхслойное сжатие контекста",
+    contextWindow: "Окно контекста",
+    tokenUsage: "Использование токенов",
+    user: "пользователь",
+    assistant: "ассистент",
+    toolResult: "tool_result",
+    largestBlocks: "tool_result занимают больше всего места",
+    largestBlocksDesc:
+      "Содержимое файлов, вывод команд и результаты поиска — каждый такой блок съедает тысячи токенов.",
+    microCompact: "МИКРО-СЖАТИЕ",
+    autoCompact: "АВТО-СЖАТИЕ",
+    summary: "СВОДКА",
+    compactSummary: "КОРОТКАЯ СВОДКА",
+    microCompactDesc: "Старые tool_result ужаты до коротких сводок",
+    autoCompactDesc: "Весь разговор сжат в один summary-блок",
+    compactDesc: "Самое агрессивное сжатие — контекст почти пуст",
+    stage1: "Этап 1: Micro — сжать старые tool_result",
+    stage1Mode: "автоматически",
+    stage2: "Этап 2: Auto — сжать весь разговор в summary",
+    stage2Mode: "по порогу",
+    stage3: "Этап 3: /compact — ручной запуск самого глубокого сжатия",
+    stage3Mode: "вручную",
+  },
+} as const;
+
 interface StepState {
   blocks: { id: string; type: BlockType; label: string; heightPx: number; compressed?: boolean }[];
   tokenCount: number;
@@ -53,7 +129,10 @@ interface StepState {
   compressionLabel: string | null;
 }
 
-function computeStepState(step: number): StepState {
+function computeStepState(
+  step: number,
+  copy: CompactCopy
+): StepState {
   switch (step) {
     case 0: {
       const raw = generateBlocks(8, 0);
@@ -101,7 +180,7 @@ function computeStepState(step: number): StepState {
         blocks,
         tokenCount,
         fillPercent: 60,
-        compressionLabel: "MICRO-COMPACT",
+        compressionLabel: copy.microCompact,
       };
     }
     case 4: {
@@ -119,7 +198,7 @@ function computeStepState(step: number): StepState {
       const summaryBlock = {
         id: "auto-summary",
         type: "assistant" as BlockType,
-        label: "SUMMARY",
+        label: copy.summary,
         heightPx: 40,
         compressed: false,
       };
@@ -131,7 +210,7 @@ function computeStepState(step: number): StepState {
         blocks: [summaryBlock, ...recentBlocks],
         tokenCount,
         fillPercent: 25,
-        compressionLabel: "AUTO-COMPACT",
+        compressionLabel: copy.autoCompact,
       };
     }
     case 6: {
@@ -139,7 +218,7 @@ function computeStepState(step: number): StepState {
       const compactBlock = {
         id: "compact-summary",
         type: "assistant" as BlockType,
-        label: "COMPACT SUMMARY",
+        label: copy.compactSummary,
         heightPx: 24,
         compressed: false,
       };
@@ -155,45 +234,85 @@ function computeStepState(step: number): StepState {
   }
 }
 
-const STEPS = [
-  {
-    title: "Growing Context",
-    description:
-      "The context window holds the conversation. Each API call adds more messages.",
-  },
-  {
-    title: "Context Growing",
-    description:
-      "As the agent works, messages accumulate. The context window fills up.",
-  },
-  {
-    title: "Approaching Limit",
-    description:
-      "Old tool_results are the biggest consumers. Micro-compact targets these first.",
-  },
-  {
-    title: "Stage 1: Micro-Compact",
-    description:
-      "Replace old tool_results with short summaries. Automatic, transparent to the model.",
-  },
-  {
-    title: "Still Growing",
-    description:
-      "Work continues. Context grows again toward the threshold...",
-  },
-  {
-    title: "Stage 2: Auto-Compact",
-    description:
-      "Entire conversation summarized into a compact block. Triggered at token threshold.",
-  },
-  {
-    title: "Stage 3: /compact",
-    description:
-      "User-triggered, most aggressive. Three layers of strategic forgetting enable infinite sessions.",
-  },
-];
+const STEPS_BY_LOCALE = {
+  en: [
+    {
+      title: "Growing Context",
+      description:
+        "The context window holds the conversation. Each API call adds more messages.",
+    },
+    {
+      title: "Context Growing",
+      description:
+        "As the agent works, messages accumulate. The context window fills up.",
+    },
+    {
+      title: "Approaching Limit",
+      description:
+        "Old tool_results are the biggest consumers. Micro-compact targets these first.",
+    },
+    {
+      title: "Stage 1: Micro-Compact",
+      description:
+        "Replace old tool_results with short summaries. Automatic, transparent to the model.",
+    },
+    {
+      title: "Still Growing",
+      description: "Work continues. Context grows again toward the threshold...",
+    },
+    {
+      title: "Stage 2: Auto-Compact",
+      description:
+        "Entire conversation summarized into a compact block. Triggered at token threshold.",
+    },
+    {
+      title: "Stage 3: /compact",
+      description:
+        "User-triggered, most aggressive. Three layers of strategic forgetting enable infinite sessions.",
+    },
+  ],
+  ru: [
+    {
+      title: "Рост контекста",
+      description:
+        "Окно контекста хранит весь разговор. Каждый вызов API добавляет новые сообщения.",
+    },
+    {
+      title: "Контекст продолжает расти",
+      description:
+        "Пока агент работает, сообщения накапливаются. Окно контекста постепенно заполняется.",
+    },
+    {
+      title: "Приближение к лимиту",
+      description:
+        "Старые tool_result — самые тяжёлые куски контекста. Микро-сжатие бьёт по ним первым.",
+    },
+    {
+      title: "Этап 1: Micro-Compact",
+      description:
+        "Старые tool_result заменяются короткими сводками. Это происходит автоматически и прозрачно для модели.",
+    },
+    {
+      title: "Контекст снова растёт",
+      description: "Работа продолжается. Контекст снова движется к порогу...",
+    },
+    {
+      title: "Этап 2: Auto-Compact",
+      description:
+        "Весь разговор сворачивается в компактный блок summary. Срабатывает по порогу токенов.",
+    },
+    {
+      title: "Этап 3: /compact",
+      description:
+        "Запускается пользователем и сжимает сильнее всего. Три уровня стратегического забывания позволяют вести бесконечные сессии.",
+    },
+  ],
+} as const;
 
 export default function ContextCompact({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = locale === "ru" ? COPY.ru : COPY.en;
+  const steps = locale === "ru" ? STEPS_BY_LOCALE.ru : STEPS_BY_LOCALE.en;
   const {
     currentStep,
     totalSteps,
@@ -202,9 +321,9 @@ export default function ContextCompact({ title }: { title?: string }) {
     reset,
     isPlaying,
     toggleAutoPlay,
-  } = useSteppedVisualization({ totalSteps: STEPS.length, autoPlayInterval: 2500 });
+  } = useSteppedVisualization({ totalSteps: steps.length, autoPlayInterval: 2500 });
 
-  const state = useMemo(() => computeStepState(currentStep), [currentStep]);
+  const state = useMemo(() => computeStepState(currentStep, copy), [currentStep, copy]);
 
   const fillColor =
     state.fillPercent > 75
@@ -218,7 +337,7 @@ export default function ContextCompact({ title }: { title?: string }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Three-Layer Context Compression"}
+        {title || copy.title}
       </h2>
 
       <div
@@ -229,7 +348,7 @@ export default function ContextCompact({ title }: { title?: string }) {
           {/* Token Window (tall vertical bar on the left) */}
           <div className="flex flex-col items-center">
             <div className="mb-2 font-mono text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-              Context Window
+              {copy.contextWindow}
             </div>
             <div
               className="relative w-24 overflow-hidden rounded-xl border-2 border-zinc-300 bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800"
@@ -298,7 +417,7 @@ export default function ContextCompact({ title }: { title?: string }) {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Token usage
+                  {copy.tokenUsage}
                 </span>
                 <span className="font-mono text-xs text-zinc-500">
                   {state.tokenCount.toLocaleString()} / {MAX_TOKENS.toLocaleString()}
@@ -317,15 +436,15 @@ export default function ContextCompact({ title }: { title?: string }) {
             <div className="mt-4 flex items-center gap-4">
               <div className="flex items-center gap-1">
                 <div className="h-3 w-3 rounded bg-blue-500" />
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">user</span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{copy.user}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="h-3 w-3 rounded bg-zinc-500" />
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">assistant</span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{copy.assistant}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="h-3 w-3 rounded bg-emerald-500" />
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">tool_result</span>
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{copy.toolResult}</span>
               </div>
             </div>
 
@@ -339,10 +458,10 @@ export default function ContextCompact({ title }: { title?: string }) {
                   className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-700 dark:bg-amber-900/20"
                 >
                   <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                    tool_results are the largest blocks
+                    {copy.largestBlocks}
                   </div>
                   <div className="text-[11px] text-amber-600 dark:text-amber-400">
-                    File contents, command outputs, search results -- each one is thousands of tokens.
+                    {copy.largestBlocksDesc}
                   </div>
                 </motion.div>
               )}
@@ -381,9 +500,9 @@ export default function ContextCompact({ title }: { title?: string }) {
                           ? "text-blue-500 dark:text-blue-400"
                           : "text-emerald-500 dark:text-emerald-400"
                     }`}>
-                      {currentStep === 3 && "Old tool_results shrunk to tiny summaries"}
-                      {currentStep === 5 && "Full conversation compressed to summary block"}
-                      {currentStep === 6 && "Most aggressive compression -- near-empty context"}
+                      {currentStep === 3 && copy.microCompactDesc}
+                      {currentStep === 5 && copy.autoCompactDesc}
+                      {currentStep === 6 && copy.compactDesc}
                     </div>
                   </div>
                 </motion.div>
@@ -401,28 +520,28 @@ export default function ContextCompact({ title }: { title?: string }) {
                 <div className="flex items-center gap-2 rounded bg-amber-50 px-3 py-1.5 dark:bg-amber-900/10">
                   <div className="h-2 w-2 rounded-full bg-amber-500" />
                   <span className="text-xs text-amber-700 dark:text-amber-300">
-                    Stage 1: Micro -- shrink old tool_results
+                    {copy.stage1}
                   </span>
                   <span className="ml-auto font-mono text-[10px] text-amber-500">
-                    automatic
+                    {copy.stage1Mode}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 rounded bg-blue-50 px-3 py-1.5 dark:bg-blue-900/10">
                   <div className="h-2 w-2 rounded-full bg-blue-500" />
                   <span className="text-xs text-blue-700 dark:text-blue-300">
-                    Stage 2: Auto -- summarize entire conversation
+                    {copy.stage2}
                   </span>
                   <span className="ml-auto font-mono text-[10px] text-blue-500">
-                    at threshold
+                    {copy.stage2Mode}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 rounded bg-emerald-50 px-3 py-1.5 dark:bg-emerald-900/10">
                   <div className="h-2 w-2 rounded-full bg-emerald-500" />
                   <span className="text-xs text-emerald-700 dark:text-emerald-300">
-                    Stage 3: /compact -- user-triggered, deepest compression
+                    {copy.stage3}
                   </span>
                   <span className="ml-auto font-mono text-[10px] text-emerald-500">
-                    manual
+                    {copy.stage3Mode}
                   </span>
                 </div>
               </motion.div>
@@ -440,8 +559,8 @@ export default function ContextCompact({ title }: { title?: string }) {
             onReset={reset}
             isPlaying={isPlaying}
             onToggleAutoPlay={toggleAutoPlay}
-            stepTitle={STEPS[currentStep].title}
-            stepDescription={STEPS[currentStep].description}
+            stepTitle={steps[currentStep].title}
+            stepDescription={steps[currentStep].description}
           />
         </div>
       </div>

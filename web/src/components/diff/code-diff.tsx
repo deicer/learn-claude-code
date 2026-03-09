@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { diffLines, Change } from "diff";
+import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface CodeDiffProps {
@@ -12,9 +13,14 @@ interface CodeDiffProps {
 }
 
 export function CodeDiff({ oldSource, newSource, oldLabel, newLabel }: CodeDiffProps) {
+  const locale = useLocale();
   const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
 
   const changes = useMemo(() => diffLines(oldSource, newSource), [oldSource, newSource]);
+  const copy =
+    locale === "ru"
+      ? { unified: "Общий", split: "Рядом" }
+      : { unified: "Unified", split: "Split" };
 
   return (
     <div>
@@ -34,7 +40,7 @@ export function CodeDiff({ oldSource, newSource, oldLabel, newLabel }: CodeDiffP
                 : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
             )}
           >
-            Unified
+            {copy.unified}
           </button>
           <button
             onClick={() => setViewMode("split")}
@@ -45,7 +51,7 @@ export function CodeDiff({ oldSource, newSource, oldLabel, newLabel }: CodeDiffP
                 : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
             )}
           >
-            Split
+            {copy.split}
           </button>
         </div>
       </div>

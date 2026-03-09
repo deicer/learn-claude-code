@@ -2,8 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { useTranslations } from "@/lib/i18n";
+import { useLocale, useTranslations } from "@/lib/i18n";
 import { useSimulator } from "@/hooks/useSimulator";
+import { SCENARIO_RU_OVERRIDES } from "@/data/scenario-ru";
 import { SimulatorControls } from "./simulator-controls";
 import { SimulatorMessage } from "./simulator-message";
 import type { Scenario } from "@/types/agent-data";
@@ -29,8 +30,13 @@ interface AgentLoopSimulatorProps {
 
 export function AgentLoopSimulator({ version }: AgentLoopSimulatorProps) {
   const t = useTranslations("version");
+  const locale = useLocale();
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const emptyState =
+    locale === "ru"
+      ? "Нажмите «Старт» или «Шаг», чтобы начать"
+      : "Press Play or Step to begin";
 
   useEffect(() => {
     const loader = scenarioModules[version];
@@ -39,7 +45,31 @@ export function AgentLoopSimulator({ version }: AgentLoopSimulatorProps) {
     }
   }, [version]);
 
-  const sim = useSimulator(scenario?.steps ?? []);
+  const scenarioOverride =
+    locale === "ru" ? SCENARIO_RU_OVERRIDES[version] : undefined;
+  const description =
+    locale === "ru"
+      ? scenarioOverride?.description ||
+        scenario?.ru?.description ||
+        scenario?.description ||
+        ""
+      : scenario?.description || "";
+  const localizedSteps = scenario
+    ? locale === "ru"
+      ? scenario.steps.map((step, index) => ({
+          ...step,
+          content:
+            scenarioOverride?.steps?.[index]?.content ||
+            step.ru?.content ||
+            step.content,
+          annotation:
+            scenarioOverride?.steps?.[index]?.annotation ||
+            step.ru?.annotation ||
+            step.annotation,
+        }))
+      : scenario.steps
+    : [];
+  const sim = useSimulator(localizedSteps);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -56,7 +86,7 @@ export function AgentLoopSimulator({ version }: AgentLoopSimulatorProps) {
     <section>
       <h2 className="mb-2 text-xl font-semibold">{t("simulator")}</h2>
       <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-        {scenario.description}
+        {description}
       </p>
 
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
@@ -81,7 +111,7 @@ export function AgentLoopSimulator({ version }: AgentLoopSimulatorProps) {
         >
           {sim.visibleSteps.length === 0 && (
             <div className="flex flex-1 items-center justify-center text-sm text-[var(--color-text-secondary)]">
-              Press Play or Step to begin
+              {emptyState}
             </div>
           )}
           <AnimatePresence mode="popLayout">

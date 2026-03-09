@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
+import { useLocale } from "@/lib/i18n";
 
 interface MessageBlock {
   id: string;
@@ -10,63 +11,95 @@ interface MessageBlock {
   color: string;
 }
 
-const PARENT_BASE_MESSAGES: MessageBlock[] = [
-  { id: "p1", label: "user: Build login + tests", color: "bg-blue-500" },
-  { id: "p2", label: "assistant: Planning approach...", color: "bg-zinc-600" },
-  { id: "p3", label: "tool_result: project structure", color: "bg-emerald-500" },
-];
+interface SubagentCopy {
+  title: string;
+  parentBaseMessages: MessageBlock[];
+  taskPrompt: MessageBlock;
+  childWorkMessages: MessageBlock[];
+  summaryBlock: MessageBlock;
+  steps: { title: string; description: string }[];
+  parentProcess: string;
+  childProcess: string;
+  messagesFresh: string;
+  notSpawned: string;
+  cleanContext: string;
+  isolation: string;
+  compressing: string;
+  discarded: string;
+  taskPromptChip: string;
+  summaryChip: string;
+}
 
-const TASK_PROMPT: MessageBlock = {
-  id: "task",
-  label: "task: Write unit tests for auth",
-  color: "bg-purple-500",
+const COPY: Record<string, SubagentCopy> = {
+  en: {
+    title: "Subagent Context Isolation",
+    parentBaseMessages: [
+      { id: "p1", label: "user: Build login + tests", color: "bg-blue-500" },
+      { id: "p2", label: "assistant: Planning approach...", color: "bg-zinc-600" },
+      { id: "p3", label: "tool_result: project structure", color: "bg-emerald-500" },
+    ],
+    taskPrompt: { id: "task", label: "task: Write unit tests for auth", color: "bg-purple-500" },
+    childWorkMessages: [
+      { id: "c1", label: "tool_use: read auth.ts", color: "bg-amber-500" },
+      { id: "c2", label: "tool_use: write test.ts", color: "bg-amber-500" },
+    ],
+    summaryBlock: { id: "summary", label: "summary: 3 tests written, all passing", color: "bg-teal-500" },
+    steps: [
+      { title: "Parent Context", description: "The parent agent has accumulated messages from the conversation." },
+      { title: "Spawn Subagent", description: "Task tool creates a child with fresh messages[]. Only the task description is passed." },
+      { title: "Independent Work", description: "The child has its own context. It doesn't see the parent's history." },
+      { title: "Compress Result", description: "The child's full conversation compresses into one summary." },
+      { title: "Return Summary", description: "Only the summary returns. The child's full context is discarded." },
+      { title: "Clean Context", description: "The parent gets a clean summary without context bloat. This is fresh-context isolation via messages[]." },
+    ],
+    parentProcess: "Parent Process",
+    childProcess: "Child Process",
+    messagesFresh: "messages[] (fresh)",
+    notSpawned: "not yet spawned",
+    cleanContext: "3 original + 1 summary = clean context",
+    isolation: "ISOLATION",
+    compressing: "Compressing full context into summary...",
+    discarded: "context discarded",
+    taskPromptChip: "task prompt",
+    summaryChip: "summary",
+  },
+  ru: {
+    title: "Изоляция контекста сабагента",
+    parentBaseMessages: [
+      { id: "p1", label: "user: Собрать логин + тесты", color: "bg-blue-500" },
+      { id: "p2", label: "assistant: Планирую подход...", color: "bg-zinc-600" },
+      { id: "p3", label: "tool_result: структура проекта", color: "bg-emerald-500" },
+    ],
+    taskPrompt: { id: "task", label: "task: Написать unit-тесты для auth", color: "bg-purple-500" },
+    childWorkMessages: [
+      { id: "c1", label: "tool_use: read auth.ts", color: "bg-amber-500" },
+      { id: "c2", label: "tool_use: write test.ts", color: "bg-amber-500" },
+    ],
+    summaryBlock: { id: "summary", label: "summary: написаны 3 теста, всё проходит", color: "bg-teal-500" },
+    steps: [
+      { title: "Контекст родителя", description: "Родительский агент уже накопил сообщения из разговора." },
+      { title: "Запуск сабагента", description: "Инструмент Task создаёт дочернего агента со свежим messages[]. Передаётся только описание задачи." },
+      { title: "Независимая работа", description: "У дочернего агента свой собственный контекст. Историю родителя он не видит." },
+      { title: "Сжать результат", description: "Весь диалог дочернего агента сжимается в одну сводку." },
+      { title: "Вернуть сводку", description: "Назад возвращается только сводка. Полный контекст дочернего агента выбрасывается." },
+      { title: "Чистый контекст", description: "Родитель получает чистую сводку без раздувания контекста. Это и есть изоляция через свежий messages[]." },
+    ],
+    parentProcess: "Родительский процесс",
+    childProcess: "Дочерний процесс",
+    messagesFresh: "messages[] (свежий)",
+    notSpawned: "ещё не запущен",
+    cleanContext: "3 исходных + 1 сводка = чистый контекст",
+    isolation: "ИЗОЛЯЦИЯ",
+    compressing: "Сжимаем полный контекст в сводку...",
+    discarded: "контекст отброшен",
+    taskPromptChip: "описание задачи",
+    summaryChip: "сводка",
+  },
 };
-
-const CHILD_WORK_MESSAGES: MessageBlock[] = [
-  { id: "c1", label: "tool_use: read auth.ts", color: "bg-amber-500" },
-  { id: "c2", label: "tool_use: write test.ts", color: "bg-amber-500" },
-];
-
-const SUMMARY_BLOCK: MessageBlock = {
-  id: "summary",
-  label: "summary: 3 tests written, all passing",
-  color: "bg-teal-500",
-};
-
-const STEPS = [
-  {
-    title: "Parent Context",
-    description:
-      "The parent agent has accumulated messages from the conversation.",
-  },
-  {
-    title: "Spawn Subagent",
-    description:
-      "Task tool creates a child with fresh messages[]. Only the task description is passed.",
-  },
-  {
-    title: "Independent Work",
-    description:
-      "The child has its own context. It doesn't see the parent's history.",
-  },
-  {
-    title: "Compress Result",
-    description:
-      "The child's full conversation compresses into one summary.",
-  },
-  {
-    title: "Return Summary",
-    description:
-      "Only the summary returns. The child's full context is discarded.",
-  },
-  {
-    title: "Clean Context",
-    description:
-      "The parent gets a clean summary without context bloat. This is fresh-context isolation via messages[].",
-  },
-];
 
 export default function SubagentIsolation({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -75,23 +108,23 @@ export default function SubagentIsolation({ title }: { title?: string }) {
     reset,
     isPlaying,
     toggleAutoPlay,
-  } = useSteppedVisualization({ totalSteps: STEPS.length, autoPlayInterval: 2500 });
+  } = useSteppedVisualization({ totalSteps: copy.steps.length, autoPlayInterval: 2500 });
 
   // Derive what to show in each container based on step
   const parentMessages: MessageBlock[] = (() => {
-    const base = [...PARENT_BASE_MESSAGES];
+    const base = [...copy.parentBaseMessages];
     if (currentStep >= 5) {
-      base.push(SUMMARY_BLOCK);
+      base.push(copy.summaryBlock);
     }
     return base;
   })();
 
   const childMessages: MessageBlock[] = (() => {
     if (currentStep < 1) return [];
-    if (currentStep === 1) return [TASK_PROMPT];
-    if (currentStep === 2) return [TASK_PROMPT, ...CHILD_WORK_MESSAGES];
-    if (currentStep === 3) return [SUMMARY_BLOCK];
-    return currentStep >= 4 ? [TASK_PROMPT, ...CHILD_WORK_MESSAGES] : [];
+    if (currentStep === 1) return [copy.taskPrompt];
+    if (currentStep === 2) return [copy.taskPrompt, ...copy.childWorkMessages];
+    if (currentStep === 3) return [copy.summaryBlock];
+    return currentStep >= 4 ? [copy.taskPrompt, ...copy.childWorkMessages] : [];
   })();
 
   const showChildEmpty = currentStep === 0;
@@ -104,7 +137,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Subagent Context Isolation"}
+        {title || copy.title}
       </h2>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900"
@@ -117,7 +150,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
             <div className="mb-3 flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-blue-500" />
               <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                Parent Process
+                {copy.parentProcess}
               </span>
             </div>
             <div className="mb-2 font-mono text-xs text-zinc-400">
@@ -146,7 +179,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 transition={{ delay: 0.5 }}
                 className="mt-3 rounded border border-blue-200 bg-white/60 px-2 py-1 text-center text-xs text-blue-600 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
               >
-                3 original + 1 summary = clean context
+                {copy.cleanContext}
               </motion.div>
             )}
           </div>
@@ -161,7 +194,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
               className="rounded bg-zinc-200 px-2 py-1 text-center font-mono text-[10px] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
               style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
             >
-              ISOLATION
+              {copy.isolation}
             </motion.div>
             <div className="h-full w-px border-l-2 border-dashed border-zinc-300 dark:border-zinc-600" />
           </div>
@@ -195,11 +228,11 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                       : "text-purple-700 dark:text-purple-300"
                 }`}
               >
-                Child Process
+                {copy.childProcess}
               </span>
             </div>
             <div className="mb-2 font-mono text-xs text-zinc-400">
-              messages[] (fresh)
+              {copy.messagesFresh}
             </div>
 
             {showChildEmpty && (
@@ -209,7 +242,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 className="flex h-24 items-center justify-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700"
               >
                 <span className="text-xs text-zinc-400">
-                  not yet spawned
+                  {copy.notSpawned}
                 </span>
               </motion.div>
             )}
@@ -237,7 +270,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 animate={{ opacity: 1, scale: 1 }}
                 className="mt-3 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-center text-xs text-amber-700 dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-300"
               >
-                Compressing full context into summary...
+                {copy.compressing}
               </motion.div>
             )}
 
@@ -247,7 +280,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 animate={{ opacity: 1 }}
                 className="mt-3 rounded border border-red-200 bg-red-50 px-2 py-1 text-center text-xs text-red-500 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
               >
-                context discarded
+                {copy.discarded}
               </motion.div>
             )}
           </div>
@@ -264,7 +297,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 style={{ zIndex: 10 }}
               >
                 <div className="rounded-lg bg-purple-500 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
-                  task prompt
+                  {copy.taskPromptChip}
                 </div>
               </motion.div>
             )}
@@ -281,7 +314,7 @@ export default function SubagentIsolation({ title }: { title?: string }) {
                 style={{ zIndex: 10 }}
               >
                 <div className="rounded-lg bg-teal-500 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
-                  summary
+                  {copy.summaryChip}
                 </div>
               </motion.div>
             )}
@@ -298,8 +331,8 @@ export default function SubagentIsolation({ title }: { title?: string }) {
             onReset={reset}
             isPlaying={isPlaying}
             onToggleAutoPlay={toggleAutoPlay}
-            stepTitle={STEPS[currentStep].title}
-            stepDescription={STEPS[currentStep].description}
+            stepTitle={copy.steps[currentStep].title}
+            stepDescription={copy.steps[currentStep].description}
           />
         </div>
       </div>

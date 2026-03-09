@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useTranslations, useLocale } from "@/lib/i18n";
 import { LEARNING_PATH, VERSION_META, LAYERS } from "@/lib/constants";
+import {
+  getTranslatedLayerLabel,
+  getTranslatedSessionTitle,
+  getTranslatedVersionField,
+} from "@/lib/version-i18n";
 import { LayerBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -39,6 +44,9 @@ function getVersionData(id: string) {
 
 export default function HomePage() {
   const t = useTranslations("home");
+  const tLayer = useTranslations("layer_labels");
+  const tSession = useTranslations("sessions");
+  const tMeta = useTranslations("version_meta");
   const locale = useLocale();
 
   return (
@@ -170,10 +178,15 @@ export default function HomePage() {
                     </span>
                   </div>
                   <h3 className="mt-3 text-sm font-semibold group-hover:underline">
-                    {meta.title}
+                    {getTranslatedSessionTitle(tSession, versionId, meta.title)}
                   </h3>
                   <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                    {meta.keyInsight}
+                    {getTranslatedVersionField(
+                      tMeta,
+                      versionId,
+                      "keyInsight",
+                      meta.keyInsight
+                    )}
                   </p>
                 </Card>
               </Link>
@@ -204,7 +217,9 @@ export default function HomePage() {
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold">{layer.label}</h3>
+                  <h3 className="text-sm font-semibold">
+                    {getTranslatedLayerLabel(tLayer, layer.id, layer.label)}
+                  </h3>
                   <span className="text-xs text-[var(--color-text-secondary)]">
                     {layer.versions.length} {t("versions_in_layer")}
                   </span>
@@ -218,7 +233,7 @@ export default function HomePage() {
                           layer={layer.id}
                           className="cursor-pointer transition-opacity hover:opacity-80"
                         >
-                          {vid}: {meta?.title}
+                          {vid}: {meta ? getTranslatedSessionTitle(tSession, vid, meta.title) : vid}
                         </LayerBadge>
                       </Link>
                     );

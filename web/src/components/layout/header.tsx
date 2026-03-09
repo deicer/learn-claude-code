@@ -15,14 +15,16 @@ const NAV_ITEMS = [
 
 const LOCALES = [
   { code: "en", label: "EN" },
-  { code: "zh", label: "中文" },
-  { code: "ja", label: "日本語" },
+  { code: "zh", label: "ZH" },
+  { code: "ja", label: "JA" },
+  { code: "ru", label: "RU" },
 ];
 
 export function Header() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const locale = useLocale();
+  const brand = locale === "ru" ? "Изучаем Claude Code" : "Learn Claude Code";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
@@ -49,10 +51,9 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href={`/${locale}`} className="text-lg font-bold">
-          Learn Claude Code
+          {brand}
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
           {NAV_ITEMS.map((item) => (
             <Link
@@ -69,7 +70,6 @@ export function Header() {
             </Link>
           ))}
 
-          {/* Locale switcher */}
           <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] p-0.5">
             {LOCALES.map((l) => (
               <button
@@ -104,7 +104,6 @@ export function Header() {
           </a>
         </nav>
 
-        {/* Mobile hamburger */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center md:hidden"
@@ -113,7 +112,6 @@ export function Header() {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
         <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 md:hidden">
           {NAV_ITEMS.map((item) => (

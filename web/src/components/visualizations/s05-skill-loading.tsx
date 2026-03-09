@@ -3,98 +3,169 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
+import { useLocale } from "@/lib/i18n";
 
 interface SkillEntry {
   name: string;
-  summary: string;
   fullTokens: number;
-  content: string[];
 }
 
 const SKILLS: SkillEntry[] = [
   {
     name: "/commit",
-    summary: "Create git commits following repo conventions",
     fullTokens: 320,
-    content: [
-      "1. Run git status + git diff to see changes",
-      "2. Analyze all staged changes and draft message",
-      "3. Create commit with Co-Authored-By trailer",
-      "4. Run git status after commit to verify",
-    ],
   },
   {
     name: "/review-pr",
-    summary: "Review pull requests for bugs and style",
     fullTokens: 480,
-    content: [
-      "1. Fetch PR diff via gh pr view",
-      "2. Analyze changes file by file for issues",
-      "3. Check for bugs, security, and style problems",
-      "4. Post review comments with gh pr review",
-    ],
   },
   {
     name: "/test",
-    summary: "Run and analyze test suites",
     fullTokens: 290,
-    content: [
-      "1. Detect test framework from package.json",
-      "2. Run test suite and capture output",
-      "3. Analyze failures and suggest fixes",
-      "4. Re-run after applying fixes",
-    ],
   },
   {
     name: "/deploy",
-    summary: "Deploy application to target environment",
     fullTokens: 350,
-    content: [
-      "1. Verify all tests pass before deploy",
-      "2. Build production bundle",
-      "3. Push to deployment target via CI",
-      "4. Verify health check on deployed URL",
-    ],
   },
 ];
 
 const TOKEN_STATES = [120, 120, 440, 440, 780, 780];
 const MAX_TOKEN_DISPLAY = 1000;
 
-const STEPS = [
-  {
-    title: "Layer 1: Compact Summaries",
-    description:
-      "All skills are summarized in the system prompt. Compact, always present.",
+interface SkillLoadingCopy {
+  title: string;
+  systemPrompt: string;
+  alwaysPresent: string;
+  availableSkills: string;
+  skillSummaries: string[];
+  skillContent: string[][];
+  userTypes: string;
+  toolResult: string;
+  mechanism: string;
+  layer1: string;
+  layer2: string;
+  layer1Desc: string;
+  layer2Desc: string;
+  tokens: string;
+  steps: { title: string; description: string }[];
+}
+
+const COPY: Record<string, SkillLoadingCopy> = {
+  en: {
+    title: "On-Demand Skill Loading",
+    systemPrompt: "System Prompt",
+    alwaysPresent: "always present",
+    availableSkills: "# Available Skills",
+    skillSummaries: [
+      "Create git commits following repo conventions",
+      "Review pull requests for bugs and style",
+      "Run and analyze test suites",
+      "Deploy application to target environment",
+    ],
+    skillContent: [
+      [
+        "1. Run git status + git diff to see changes",
+        "2. Analyze all staged changes and draft message",
+        "3. Create commit with Co-Authored-By trailer",
+        "4. Run git status after commit to verify",
+      ],
+      [
+        "1. Fetch PR diff via gh pr view",
+        "2. Analyze changes file by file for issues",
+        "3. Check for bugs, security, and style problems",
+        "4. Post review comments with gh pr review",
+      ],
+      [
+        "1. Detect test framework from package.json",
+        "2. Run test suite and capture output",
+        "3. Analyze failures and suggest fixes",
+        "4. Re-run after applying fixes",
+      ],
+      [
+        "1. Verify all tests pass before deploy",
+        "2. Build production bundle",
+        "3. Push to deployment target via CI",
+        "4. Verify health check on deployed URL",
+      ],
+    ],
+    userTypes: "User types:",
+    toolResult: "tool_result",
+    mechanism:
+      "The Skill tool returns content as a tool_result message. The model sees it in context and follows the instructions. No system prompt bloat.",
+    layer1: "LAYER 1",
+    layer2: "LAYER 2",
+    layer1Desc: "Always present, ~120 tokens",
+    layer2Desc: "On demand, ~300-500 tokens each",
+    tokens: "Tokens",
+    steps: [
+      { title: "Layer 1: Compact Summaries", description: "All skills are summarized in the system prompt. Compact, always present." },
+      { title: "Skill Invocation", description: "The model recognizes a skill invocation and triggers the Skill tool." },
+      { title: "Layer 2: Full Injection", description: "The full skill instructions are injected as a tool_result, not into the system prompt." },
+      { title: "In Context Now", description: "The detailed instructions appear as if a tool returned them. The model follows them precisely." },
+      { title: "Stack Skills", description: "Multiple skills can be loaded. Only summaries are permanent; full content comes and goes." },
+      { title: "Two-Layer Architecture", description: "Layer 1: always present, tiny. Layer 2: loaded on demand, detailed. Elegant separation." },
+    ],
   },
-  {
-    title: "Skill Invocation",
-    description:
-      'The model recognizes a skill invocation and triggers the Skill tool.',
+  ru: {
+    title: "Загрузка навыков по требованию",
+    systemPrompt: "Системный промпт",
+    alwaysPresent: "всегда присутствует",
+    availableSkills: "# Доступные навыки",
+    skillSummaries: [
+      "Создаёт git-коммиты по правилам репозитория",
+      "Проверяет pull request на баги и стиль",
+      "Запускает и анализирует тестовые наборы",
+      "Деплоит приложение в целевое окружение",
+    ],
+    skillContent: [
+      [
+        "1. Запустить git status + git diff и посмотреть изменения",
+        "2. Проанализировать staged-правки и набросать сообщение",
+        "3. Создать коммит с trailer Co-Authored-By",
+        "4. После коммита снова проверить git status",
+      ],
+      [
+        "1. Получить diff PR через gh pr view",
+        "2. Разобрать изменения по файлам и найти проблемы",
+        "3. Проверить баги, безопасность и стиль",
+        "4. Отправить комментарии через gh pr review",
+      ],
+      [
+        "1. Определить тестовый фреймворк по package.json",
+        "2. Запустить тесты и собрать вывод",
+        "3. Разобрать падения и предложить исправления",
+        "4. Повторно прогнать после правок",
+      ],
+      [
+        "1. Убедиться, что перед деплоем все тесты проходят",
+        "2. Собрать production-бандл",
+        "3. Отправить в целевое окружение через CI",
+        "4. Проверить health-check на задеплоенном URL",
+      ],
+    ],
+    userTypes: "Пользователь вводит:",
+    toolResult: "tool_result",
+    mechanism:
+      "Инструмент Skill возвращает содержимое как сообщение tool_result. Модель видит его в контексте и следует инструкциям. Системный промпт не раздувается.",
+    layer1: "СЛОЙ 1",
+    layer2: "СЛОЙ 2",
+    layer1Desc: "Всегда в контексте, около 120 токенов",
+    layer2Desc: "Подгружается по запросу, по 300-500 токенов",
+    tokens: "Токены",
+    steps: [
+      { title: "Слой 1: компактные сводки", description: "Все навыки кратко перечислены в системном промпте. Коротко и постоянно." },
+      { title: "Вызов навыка", description: "Модель распознаёт вызов навыка и активирует инструмент Skill." },
+      { title: "Слой 2: полная подгрузка", description: "Полные инструкции навыка приходят как tool_result, а не живут в системном промпте." },
+      { title: "Теперь это в контексте", description: "Подробные инструкции выглядят так, будто их вернул инструмент. Модель следует им буквально." },
+      { title: "Стек навыков", description: "Можно подгружать несколько навыков. Постоянны только сводки, полный контент приходит и уходит." },
+      { title: "Двухслойная архитектура", description: "Слой 1: всегда присутствует и мал. Слой 2: загружается по требованию и содержит детали." },
+    ],
   },
-  {
-    title: "Layer 2: Full Injection",
-    description:
-      "The full skill instructions are injected as a tool_result, not into the system prompt.",
-  },
-  {
-    title: "In Context Now",
-    description:
-      "The detailed instructions appear as if a tool returned them. The model follows them precisely.",
-  },
-  {
-    title: "Stack Skills",
-    description:
-      "Multiple skills can be loaded. Only summaries are permanent; full content comes and goes.",
-  },
-  {
-    title: "Two-Layer Architecture",
-    description:
-      "Layer 1: always present, tiny. Layer 2: loaded on demand, detailed. Elegant separation.",
-  },
-];
+};
 
 export default function SkillLoading({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -103,7 +174,7 @@ export default function SkillLoading({ title }: { title?: string }) {
     reset,
     isPlaying,
     toggleAutoPlay,
-  } = useSteppedVisualization({ totalSteps: STEPS.length, autoPlayInterval: 2500 });
+  } = useSteppedVisualization({ totalSteps: copy.steps.length, autoPlayInterval: 2500 });
 
   const tokenCount = TOKEN_STATES[currentStep];
   const highlightedSkill = currentStep >= 1 && currentStep <= 3 ? 0 : currentStep >= 4 ? 1 : -1;
@@ -114,7 +185,7 @@ export default function SkillLoading({ title }: { title?: string }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "On-Demand Skill Loading"}
+        {title || copy.title}
       </h2>
 
       <div
@@ -129,15 +200,15 @@ export default function SkillLoading({ title }: { title?: string }) {
               <div className="mb-2 flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-zinc-400" />
                 <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                  System Prompt
+                  {copy.systemPrompt}
                 </span>
                 <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 dark:bg-zinc-800">
-                  always present
+                  {copy.alwaysPresent}
                 </span>
               </div>
               <div className="rounded-lg border border-zinc-300 bg-zinc-900 p-4 dark:border-zinc-600">
                 <div className="mb-2 font-mono text-[10px] text-zinc-500">
-                  # Available Skills
+                  {copy.availableSkills}
                 </div>
                 <div className="space-y-1.5">
                   {SKILLS.map((skill, i) => {
@@ -161,7 +232,7 @@ export default function SkillLoading({ title }: { title?: string }) {
                           {skill.name}
                         </span>
                         {" - "}
-                        {skill.summary}
+                        {copy.skillSummaries[i]}
                       </motion.div>
                     );
                   })}
@@ -179,7 +250,7 @@ export default function SkillLoading({ title }: { title?: string }) {
                   className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-950/30"
                 >
                   <span className="text-xs text-blue-600 dark:text-blue-400">
-                    User types:
+                    {copy.userTypes}
                   </span>
                   <code className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">
                     /commit
@@ -194,7 +265,7 @@ export default function SkillLoading({ title }: { title?: string }) {
                   className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-950/30"
                 >
                   <span className="text-xs text-blue-600 dark:text-blue-400">
-                    User types:
+                    {copy.userTypes}
                   </span>
                   <code className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">
                     /review-pr
@@ -243,11 +314,11 @@ export default function SkillLoading({ title }: { title?: string }) {
                           </span>
                         </div>
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
-                          tool_result
+                          {copy.toolResult}
                         </span>
                       </div>
                       <div className="space-y-1">
-                        {SKILLS[0].content.map((line, i) => (
+                        {copy.skillContent[0].map((line, i) => (
                           <motion.div
                             key={i}
                             initial={{ opacity: 0, x: -8 }}
@@ -285,11 +356,11 @@ export default function SkillLoading({ title }: { title?: string }) {
                           </span>
                         </div>
                         <span className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-[10px] text-purple-600 dark:bg-purple-900/40 dark:text-purple-300">
-                          tool_result
+                          {copy.toolResult}
                         </span>
                       </div>
                       <div className="space-y-1">
-                        {SKILLS[1].content.map((line, i) => (
+                        {copy.skillContent[1].map((line, i) => (
                           <motion.div
                             key={i}
                             initial={{ opacity: 0, x: -8 }}
@@ -316,9 +387,7 @@ export default function SkillLoading({ title }: { title?: string }) {
                   exit={{ opacity: 0 }}
                   className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
                 >
-                  The Skill tool returns content as a tool_result message.
-                  The model sees it in context and follows the instructions.
-                  No system prompt bloat.
+                  {copy.mechanism}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -334,18 +403,18 @@ export default function SkillLoading({ title }: { title?: string }) {
                 >
                   <div className="flex-1 rounded border border-zinc-200 bg-zinc-50 p-2 text-center dark:border-zinc-700 dark:bg-zinc-800">
                     <div className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                      LAYER 1
+                      {copy.layer1}
                     </div>
                     <div className="text-xs text-zinc-600 dark:text-zinc-300">
-                      Always present, ~120 tokens
+                      {copy.layer1Desc}
                     </div>
                   </div>
                   <div className="flex-1 rounded border border-blue-200 bg-blue-50 p-2 text-center dark:border-blue-700 dark:bg-blue-900/20">
                     <div className="text-[10px] font-semibold text-blue-500 dark:text-blue-400">
-                      LAYER 2
+                      {copy.layer2}
                     </div>
                     <div className="text-xs text-blue-600 dark:text-blue-300">
-                      On demand, ~300-500 tokens each
+                      {copy.layer2Desc}
                     </div>
                   </div>
                 </motion.div>
@@ -356,7 +425,7 @@ export default function SkillLoading({ title }: { title?: string }) {
           {/* Token Gauge (vertical bar on the right) */}
           <div className="flex w-16 flex-col items-center">
             <div className="mb-1 text-center font-mono text-[10px] text-zinc-400">
-              Tokens
+              {copy.tokens}
             </div>
             <div
               className="relative w-8 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
@@ -397,8 +466,8 @@ export default function SkillLoading({ title }: { title?: string }) {
             onReset={reset}
             isPlaying={isPlaying}
             onToggleAutoPlay={toggleAutoPlay}
-            stepTitle={STEPS[currentStep].title}
-            stepDescription={STEPS[currentStep].description}
+            stepTitle={copy.steps[currentStep].title}
+            stepDescription={copy.steps[currentStep].description}
           />
         </div>
       </div>

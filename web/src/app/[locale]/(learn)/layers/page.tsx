@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useTranslations, useLocale } from "@/lib/i18n";
 import { LAYERS, VERSION_META } from "@/lib/constants";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  getTranslatedLayerLabel,
+  getTranslatedSessionTitle,
+  getTranslatedVersionField,
+} from "@/lib/version-i18n";
+import { Card } from "@/components/ui/card";
 import { LayerBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
@@ -30,6 +35,10 @@ const LAYER_HEADER_BG: Record<string, string> = {
 
 export default function LayersPage() {
   const t = useTranslations("layers");
+  const tLayer = useTranslations("layer_labels");
+  const tSession = useTranslations("sessions");
+  const tMeta = useTranslations("version_meta");
+  const tVersion = useTranslations("version");
   const locale = useLocale();
 
   return (
@@ -56,14 +65,12 @@ export default function LayersPage() {
                 LAYER_BORDER_CLASSES[layer.id]
               )}
             >
-              {/* Layer header */}
               <div className="flex items-center gap-3 px-6 py-4">
                 <div className={cn("h-3 w-3 rounded-full", LAYER_HEADER_BG[layer.id])} />
                 <div>
                   <h2 className="text-xl font-bold">
-                    <span className="text-zinc-400 dark:text-zinc-600">L{index + 1}</span>
-                    {" "}
-                    {layer.label}
+                    <span className="text-zinc-400 dark:text-zinc-600">L{index + 1}</span>{" "}
+                    {getTranslatedLayerLabel(tLayer, layer.id, layer.label)}
                   </h2>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                     {t(layer.id)}
@@ -71,28 +78,25 @@ export default function LayersPage() {
                 </div>
               </div>
 
-              {/* Version cards within this layer */}
               <div className="border-t border-zinc-200 bg-zinc-50/50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {versionInfos.map(({ id, info, meta }) => (
-                    <Link
-                      key={id}
-                      href={`/${locale}/${id}`}
-                      className="group"
-                    >
+                    <Link key={id} href={`/${locale}/${id}`} className="group">
                       <Card className="transition-shadow hover:shadow-md">
                         <div className="flex items-start justify-between">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-mono text-zinc-400">{id}</span>
-                              <LayerBadge layer={layer.id}>{layer.id}</LayerBadge>
+                              <LayerBadge layer={layer.id}>
+                                {getTranslatedLayerLabel(tLayer, layer.id, layer.id)}
+                              </LayerBadge>
                             </div>
                             <h3 className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
-                              {meta?.title || id}
+                              {meta ? getTranslatedSessionTitle(tSession, id, meta.title) : id}
                             </h3>
                             {meta?.subtitle && (
                               <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                {meta.subtitle}
+                                {getTranslatedVersionField(tMeta, id, "subtitle", meta.subtitle)}
                               </p>
                             )}
                           </div>
@@ -102,12 +106,12 @@ export default function LayersPage() {
                           />
                         </div>
                         <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-                          <span>{info?.loc ?? "?"} LOC</span>
-                          <span>{info?.tools.length ?? "?"} tools</span>
+                          <span>{info?.loc ?? "?"} {tVersion("loc")}</span>
+                          <span>{info?.tools.length ?? "?"} {tVersion("tools")}</span>
                         </div>
                         {meta?.keyInsight && (
-                          <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                            {meta.keyInsight}
+                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                            {getTranslatedVersionField(tMeta, id, "keyInsight", meta.keyInsight)}
                           </p>
                         )}
                       </Card>
@@ -116,11 +120,16 @@ export default function LayersPage() {
                 </div>
               </div>
 
-              {/* Composition indicator */}
               {index < LAYERS.length - 1 && (
                 <div className="flex items-center justify-center py-1 text-zinc-300 dark:text-zinc-700">
                   <svg width="20" height="12" viewBox="0 0 20 12" fill="none" className="text-current">
-                    <path d="M10 0 L10 12 M5 7 L10 12 L15 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path
+                      d="M10 0 L10 12 M5 7 L10 12 L15 7"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
               )}

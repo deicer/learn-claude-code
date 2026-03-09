@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 // -- Flowchart node definitions --
 
 interface FlowNode {
   id: string;
-  label: string;
   x: number;
   y: number;
   w: number;
@@ -18,28 +18,28 @@ interface FlowNode {
 }
 
 const NODES: FlowNode[] = [
-  { id: "start", label: "Start", x: 160, y: 30, w: 120, h: 40, type: "rect" },
-  { id: "api_call", label: "API Call", x: 160, y: 110, w: 120, h: 40, type: "rect" },
-  { id: "check", label: "stop_reason?", x: 160, y: 200, w: 140, h: 50, type: "diamond" },
-  { id: "execute", label: "Execute Tool", x: 160, y: 300, w: 120, h: 40, type: "rect" },
-  { id: "append", label: "Append Result", x: 160, y: 380, w: 120, h: 40, type: "rect" },
-  { id: "end", label: "Break / Done", x: 380, y: 200, w: 120, h: 40, type: "rect" },
+  { id: "start", x: 160, y: 30, w: 120, h: 40, type: "rect" },
+  { id: "api_call", x: 160, y: 110, w: 120, h: 40, type: "rect" },
+  { id: "check", x: 160, y: 200, w: 140, h: 50, type: "diamond" },
+  { id: "execute", x: 160, y: 300, w: 120, h: 40, type: "rect" },
+  { id: "append", x: 160, y: 380, w: 120, h: 40, type: "rect" },
+  { id: "end", x: 380, y: 200, w: 120, h: 40, type: "rect" },
 ];
 
 // Edges between nodes (SVG path data computed inline)
 interface FlowEdge {
   from: string;
   to: string;
-  label?: string;
+  labelKey?: "toolUse" | "endTurn";
 }
 
 const EDGES: FlowEdge[] = [
   { from: "start", to: "api_call" },
   { from: "api_call", to: "check" },
-  { from: "check", to: "execute", label: "tool_use" },
+  { from: "check", to: "execute", labelKey: "toolUse" },
   { from: "execute", to: "append" },
   { from: "append", to: "api_call" },
-  { from: "check", to: "end", label: "end_turn" },
+  { from: "check", to: "end", labelKey: "endTurn" },
 ];
 
 // Which nodes light up at each step
@@ -72,30 +72,100 @@ interface MessageBlock {
   colorClass: string;
 }
 
-const MESSAGES_PER_STEP: (MessageBlock | null)[][] = [
-  [],
-  [{ role: "user", detail: "Fix the login bug", colorClass: "bg-blue-500 dark:bg-blue-600" }],
-  [],
-  [{ role: "assistant", detail: "tool_use: read_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" }],
-  [{ role: "tool_result", detail: "auth.ts contents...", colorClass: "bg-emerald-500 dark:bg-emerald-600" }],
-  [
-    { role: "assistant", detail: "tool_use: edit_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" },
-    { role: "tool_result", detail: "file updated", colorClass: "bg-emerald-500 dark:bg-emerald-600" },
-  ],
-  [{ role: "assistant", detail: "end_turn: Done!", colorClass: "bg-purple-500 dark:bg-purple-600" }],
-];
+interface AgentLoopCopy {
+  title: string;
+  nodeLabels: Record<string, string>;
+  edgeLabels: {
+    toolUse: string;
+    endTurn: string;
+  };
+  messages: (MessageBlock | null)[][];
+  stepInfo: { title: string; desc: string }[];
+  empty: string;
+  length: string;
+  iteration: string;
+}
 
-// -- Step annotations --
-
-const STEP_INFO = [
-  { title: "The While Loop", desc: "Every agent is a while loop that keeps calling the model until it says 'stop'." },
-  { title: "User Input", desc: "The loop starts when the user sends a message." },
-  { title: "Call the Model", desc: "Send all messages to the LLM. It sees everything and decides what to do." },
-  { title: "stop_reason: tool_use", desc: "The model wants to use a tool. The loop continues." },
-  { title: "Execute & Append", desc: "Run the tool, append the result to messages[]. Feed it back." },
-  { title: "Loop Again", desc: "Same code path, second iteration. The model decides to edit a file." },
-  { title: "stop_reason: end_turn", desc: "The model is done. Loop exits. That's the entire agent." },
-];
+const COPY: Record<string, AgentLoopCopy> = {
+  en: {
+    title: "The Agent While-Loop",
+    nodeLabels: {
+      start: "Start",
+      api_call: "API Call",
+      check: "stop_reason?",
+      execute: "Execute Tool",
+      append: "Append Result",
+      end: "Break / Done",
+    },
+    edgeLabels: {
+      toolUse: "tool_use",
+      endTurn: "end_turn",
+    },
+    messages: [
+      [],
+      [{ role: "user", detail: "Fix the login bug", colorClass: "bg-blue-500 dark:bg-blue-600" }],
+      [],
+      [{ role: "assistant", detail: "tool_use: read_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" }],
+      [{ role: "tool_result", detail: "auth.ts contents...", colorClass: "bg-emerald-500 dark:bg-emerald-600" }],
+      [
+        { role: "assistant", detail: "tool_use: edit_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" },
+        { role: "tool_result", detail: "file updated", colorClass: "bg-emerald-500 dark:bg-emerald-600" },
+      ],
+      [{ role: "assistant", detail: "end_turn: Done!", colorClass: "bg-purple-500 dark:bg-purple-600" }],
+    ],
+    stepInfo: [
+      { title: "The While Loop", desc: "Every agent is a while loop that keeps calling the model until it says 'stop'." },
+      { title: "User Input", desc: "The loop starts when the user sends a message." },
+      { title: "Call the Model", desc: "Send all messages to the LLM. It sees everything and decides what to do." },
+      { title: "stop_reason: tool_use", desc: "The model wants to use a tool. The loop continues." },
+      { title: "Execute & Append", desc: "Run the tool, append the result to messages[]. Feed it back." },
+      { title: "Loop Again", desc: "Same code path, second iteration. The model decides to edit a file." },
+      { title: "stop_reason: end_turn", desc: "The model is done. Loop exits. That's the entire agent." },
+    ],
+    empty: "[ empty ]",
+    length: "length",
+    iteration: "iter #2",
+  },
+  ru: {
+    title: "Цикл агента",
+    nodeLabels: {
+      start: "Старт",
+      api_call: "Вызов API",
+      check: "stop_reason?",
+      execute: "Запуск инструмента",
+      append: "Добавить результат",
+      end: "Выход / готово",
+    },
+    edgeLabels: {
+      toolUse: "tool_use",
+      endTurn: "end_turn",
+    },
+    messages: [
+      [],
+      [{ role: "user", detail: "Исправить баг логина", colorClass: "bg-blue-500 dark:bg-blue-600" }],
+      [],
+      [{ role: "assistant", detail: "tool_use: read_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" }],
+      [{ role: "tool_result", detail: "содержимое auth.ts...", colorClass: "bg-emerald-500 dark:bg-emerald-600" }],
+      [
+        { role: "assistant", detail: "tool_use: edit_file", colorClass: "bg-zinc-600 dark:bg-zinc-500" },
+        { role: "tool_result", detail: "файл обновлён", colorClass: "bg-emerald-500 dark:bg-emerald-600" },
+      ],
+      [{ role: "assistant", detail: "end_turn: Готово!", colorClass: "bg-purple-500 dark:bg-purple-600" }],
+    ],
+    stepInfo: [
+      { title: "Цикл while", desc: "Любой агент по сути крутит while-цикл и вызывает модель, пока она не скажет остановиться." },
+      { title: "Сообщение пользователя", desc: "Цикл начинается, когда пользователь отправляет сообщение." },
+      { title: "Вызов модели", desc: "Все сообщения отправляются в LLM. Она видит весь контекст и решает, что делать дальше." },
+      { title: "stop_reason: tool_use", desc: "Модель хочет вызвать инструмент. Цикл продолжается." },
+      { title: "Выполнить и добавить", desc: "Инструмент запускается, результат дописывается в messages[] и подаётся назад модели." },
+      { title: "Следующая итерация", desc: "Тот же кодовый путь, вторая итерация. Теперь модель решает править файл." },
+      { title: "stop_reason: end_turn", desc: "Модель закончила. Цикл завершается. Это и есть весь агент." },
+    ],
+    empty: "[ пусто ]",
+    length: "длина",
+    iteration: "итер. #2",
+  },
+};
 
 // -- Helpers --
 
@@ -136,6 +206,8 @@ function edgePath(fromId: string, toId: string): string {
 // -- Component --
 
 export default function AgentLoop({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -153,17 +225,17 @@ export default function AgentLoop({ title }: { title?: string }) {
   // Build accumulated messages up to the current step
   const visibleMessages: MessageBlock[] = [];
   for (let s = 0; s <= currentStep; s++) {
-    for (const msg of MESSAGES_PER_STEP[s]) {
+    for (const msg of copy.messages[s]) {
       if (msg) visibleMessages.push(msg);
     }
   }
 
-  const stepInfo = STEP_INFO[currentStep];
+  const stepInfo = copy.stepInfo[currentStep];
 
   return (
     <section className="min-h-[500px] space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "The Agent While-Loop"}
+        {title || copy.title}
       </h2>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
@@ -228,7 +300,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                       }}
                       transition={{ duration: 0.4 }}
                     />
-                    {edge.label && (
+                    {edge.labelKey && (
                       <text
                         x={
                           edge.from === "check" && edge.to === "end"
@@ -243,7 +315,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                         textAnchor="middle"
                         className="fill-zinc-400 text-[10px] dark:fill-zinc-500"
                       >
-                        {edge.label}
+                        {copy.edgeLabels[edge.labelKey]}
                       </text>
                     )}
                   </g>
@@ -292,7 +364,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                         animate={{ fill: isActive ? palette.activeNodeText : palette.nodeText }}
                         transition={{ duration: 0.4 }}
                       >
-                        {node.label}
+                        {copy.nodeLabels[node.id]}
                       </motion.text>
                     </g>
                   );
@@ -326,7 +398,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                       animate={{ fill: isActive ? palette.activeNodeText : palette.nodeText }}
                       transition={{ duration: 0.4 }}
                     >
-                      {node.label}
+                      {copy.nodeLabels[node.id]}
                     </motion.text>
                   </g>
                 );
@@ -344,7 +416,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  iter #2
+                  {copy.iteration}
                 </motion.text>
               )}
             </svg>
@@ -365,7 +437,7 @@ export default function AgentLoop({ title }: { title?: string }) {
                     exit={{ opacity: 0 }}
                     className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-600"
                   >
-                    [ empty ]
+                    {copy.empty}
                   </motion.div>
                 )}
                 {visibleMessages.map((msg, i) => (
@@ -391,7 +463,7 @@ export default function AgentLoop({ title }: { title?: string }) {
               {visibleMessages.length > 0 && (
                 <div className="mt-3 border-t border-zinc-200 pt-2 dark:border-zinc-700">
                   <span className="font-mono text-[10px] text-zinc-400">
-                    length: {visibleMessages.length}
+                    {copy.length}: {visibleMessages.length}
                   </span>
                 </div>
               )}

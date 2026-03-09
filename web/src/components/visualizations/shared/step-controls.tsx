@@ -2,6 +2,7 @@
 
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n";
 
 interface StepControlsProps {
   currentStep: number;
@@ -28,6 +29,23 @@ export function StepControls({
   stepDescription,
   className,
 }: StepControlsProps) {
+  const locale = useLocale();
+  const copy = locale === "ru"
+    ? {
+        reset: "Сброс",
+        prev: "Предыдущий шаг",
+        pause: "Пауза",
+        autoplay: "Автовоспроизведение",
+        next: "Следующий шаг",
+      }
+    : {
+        reset: "Reset",
+        prev: "Previous step",
+        pause: "Pause",
+        autoplay: "Auto-play",
+        next: "Next step",
+      };
+
   return (
     <div className={cn("space-y-3", className)}>
       {/* Annotation */}
@@ -46,7 +64,7 @@ export function StepControls({
           <button
             onClick={onReset}
             className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title="Reset"
+            title={copy.reset}
           >
             <RotateCcw size={16} />
           </button>
@@ -54,14 +72,14 @@ export function StepControls({
             onClick={onPrev}
             disabled={currentStep === 0}
             className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title="Previous step"
+            title={copy.prev}
           >
             <SkipBack size={16} />
           </button>
           <button
             onClick={onToggleAutoPlay}
             className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title={isPlaying ? "Pause" : "Auto-play"}
+            title={isPlaying ? copy.pause : copy.autoplay}
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
@@ -69,7 +87,7 @@ export function StepControls({
             onClick={onNext}
             disabled={currentStep === totalSteps - 1}
             className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title="Next step"
+            title={copy.next}
           >
             <SkipForward size={16} />
           </button>

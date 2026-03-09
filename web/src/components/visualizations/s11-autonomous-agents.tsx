@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 // -- FSM states and their layout positions (diamond: idle top, poll right, claim bottom, work left) --
 type Phase = "idle" | "poll" | "claim" | "work";
@@ -13,11 +14,11 @@ const FSM_CY = 110;
 const FSM_R = 65;
 const FSM_STATE_R = 22;
 
-const FSM_STATES: { id: Phase; label: string; angle: number }[] = [
-  { id: "idle", label: "idle", angle: -Math.PI / 2 },
-  { id: "poll", label: "poll", angle: 0 },
-  { id: "claim", label: "claim", angle: Math.PI / 2 },
-  { id: "work", label: "work", angle: Math.PI },
+const FSM_STATES: { id: Phase; angle: number }[] = [
+  { id: "idle", angle: -Math.PI / 2 },
+  { id: "poll", angle: 0 },
+  { id: "claim", angle: Math.PI / 2 },
+  { id: "work", angle: Math.PI },
 ];
 
 const FSM_TRANSITIONS: { from: Phase; to: Phase }[] = [
@@ -47,10 +48,10 @@ interface TaskRow {
 }
 
 const INITIAL_TASKS: TaskRow[] = [
-  { id: "T1", name: "Fix auth bug", status: "unclaimed", owner: "-" },
-  { id: "T2", name: "Add rate limiter", status: "unclaimed", owner: "-" },
-  { id: "T3", name: "Write tests", status: "unclaimed", owner: "-" },
-  { id: "T4", name: "Update API docs", status: "unclaimed", owner: "-" },
+  { id: "T1", name: "T1", status: "unclaimed", owner: "-" },
+  { id: "T2", name: "T2", status: "unclaimed", owner: "-" },
+  { id: "T3", name: "T3", status: "unclaimed", owner: "-" },
+  { id: "T4", name: "T4", status: "unclaimed", owner: "-" },
 ];
 
 // Agent positions around the task board (left panel)
@@ -67,16 +68,110 @@ function agentPos(index: number) {
 }
 
 // -- Step definitions --
-const STEPS = [
-  { title: "Self-Governing Agents", desc: "Autonomous agents need no coordinator. They govern themselves with an idle-poll-claim-work cycle." },
-  { title: "Idle Timer", desc: "Each idle agent counts rounds. A timeout triggers self-directed task polling." },
-  { title: "Poll Task Board", desc: "Timeout! The agent reads the task board looking for unclaimed work." },
-  { title: "Claim Task", desc: "The agent writes its name to the task record. Atomic, no conflicts." },
-  { title: "Work", desc: "The agent works on the claimed task using its own agent loop." },
-  { title: "Independent Polling", desc: "Multiple agents poll and claim independently. No central coordinator needed." },
-  { title: "Complete & Reset", desc: "Task done. Agent returns to idle. The cycle repeats." },
-  { title: "Self-Organization", desc: "Three agents, zero coordination overhead. Polling + timeout = emergent organization." },
-];
+interface AutonomousAgentsCopy {
+  title: string;
+  steps: { title: string; desc: string }[];
+  phaseLabels: Record<Phase, string>;
+  taskNames: Record<string, string>;
+  spatialView: string;
+  taskBoard: string;
+  unclaimed: string;
+  complete: string;
+  headers: {
+    task: string;
+    status: string;
+    owner: string;
+  };
+  statuses: {
+    unclaimed: string;
+    active: string;
+    complete: string;
+  };
+  fsmCycle: string;
+}
+
+const COPY: Record<string, AutonomousAgentsCopy> = {
+  en: {
+    title: "Autonomous Agent Cycle",
+    steps: [
+      { title: "Self-Governing Agents", desc: "Autonomous agents need no coordinator. They govern themselves with an idle-poll-claim-work cycle." },
+      { title: "Idle Timer", desc: "Each idle agent counts rounds. A timeout triggers self-directed task polling." },
+      { title: "Poll Task Board", desc: "Timeout! The agent reads the task board looking for unclaimed work." },
+      { title: "Claim Task", desc: "The agent writes its name to the task record. Atomic, no conflicts." },
+      { title: "Work", desc: "The agent works on the claimed task using its own agent loop." },
+      { title: "Independent Polling", desc: "Multiple agents poll and claim independently. No central coordinator needed." },
+      { title: "Complete & Reset", desc: "Task done. Agent returns to idle. The cycle repeats." },
+      { title: "Self-Organization", desc: "Three agents, zero coordination overhead. Polling + timeout = emergent organization." },
+    ],
+    phaseLabels: {
+      idle: "idle",
+      poll: "poll",
+      claim: "claim",
+      work: "work",
+    },
+    taskNames: {
+      T1: "Fix auth bug",
+      T2: "Add rate limiter",
+      T3: "Write tests",
+      T4: "Update API docs",
+    },
+    spatialView: "Spatial View",
+    taskBoard: "Task Board",
+    unclaimed: "unclaimed",
+    complete: "complete",
+    headers: {
+      task: "Task",
+      status: "Status",
+      owner: "Owner",
+    },
+    statuses: {
+      unclaimed: "unclaimed",
+      active: "active",
+      complete: "complete",
+    },
+    fsmCycle: "FSM Cycle",
+  },
+  ru: {
+    title: "Цикл автономных агентов",
+    steps: [
+      { title: "Самоуправляемые агенты", desc: "Автономным агентам не нужен координатор. Они управляют собой через цикл ожидания, опроса, захвата задач и работы." },
+      { title: "Таймер ожидания", desc: "Каждый бездействующий агент считает раунды. Таймаут запускает самостоятельный опрос задач." },
+      { title: "Опрос доски задач", desc: "Таймаут. Агент читает доску задач и ищет незахваченную работу." },
+      { title: "Захват задачи", desc: "Агент записывает своё имя в запись задачи. Атомарно и без конфликтов." },
+      { title: "Работа", desc: "Агент выполняет захваченную задачу в своём собственном цикле." },
+      { title: "Независимый опрос", desc: "Несколько агентов независимо опрашивают и захватывают задачи. Централизованный координатор не нужен." },
+      { title: "Завершить и сбросить", desc: "Задача выполнена. Агент возвращается в idle. Цикл повторяется." },
+      { title: "Самоорганизация", desc: "Три агента, ноль накладных расходов на координацию. Polling + timeout дают самопроизвольную организацию." },
+    ],
+    phaseLabels: {
+      idle: "ожидание",
+      poll: "опрос",
+      claim: "захват",
+      work: "работа",
+    },
+    taskNames: {
+      T1: "Исправить баг auth",
+      T2: "Добавить rate limiter",
+      T3: "Написать тесты",
+      T4: "Обновить API-доки",
+    },
+    spatialView: "Пространственный вид",
+    taskBoard: "Доска задач",
+    unclaimed: "свободно",
+    complete: "готово",
+    headers: {
+      task: "Задача",
+      status: "Статус",
+      owner: "Владелец",
+    },
+    statuses: {
+      unclaimed: "свободна",
+      active: "в работе",
+      complete: "готово",
+    },
+    fsmCycle: "Цикл FSM",
+  },
+};
 
 // Per-step state for each agent
 interface AgentState {
@@ -222,7 +317,9 @@ function FSMArrow({ from, to, active, inactiveStroke }: { from: Phase; to: Phase
 }
 
 export default function AutonomousAgents({ title }: { title?: string }) {
-  const vis = useSteppedVisualization({ totalSteps: STEPS.length, autoPlayInterval: 2500 });
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
+  const vis = useSteppedVisualization({ totalSteps: copy.steps.length, autoPlayInterval: 2500 });
   const step = vis.currentStep;
   const palette = useSvgPalette();
 
@@ -234,13 +331,13 @@ export default function AutonomousAgents({ title }: { title?: string }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Autonomous Agent Cycle"}
+        {title || copy.title}
       </h2>
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 min-h-[500px]">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Left panel: spatial view with agents and task board */}
           <div className="flex-1">
-            <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">Spatial View</div>
+            <div className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">{copy.spatialView}</div>
             <svg viewBox="0 0 280 240" className="w-full">
               {/* Task board (small table in center) */}
               <rect x={BOARD_CX - 35} y={BOARD_CY - 20} width={70} height={40} rx={4}
@@ -249,17 +346,17 @@ export default function AutonomousAgents({ title }: { title?: string }) {
               <text x={BOARD_CX} y={BOARD_CY - 8} textAnchor="middle" fontSize={7} fontWeight={600}
                 fill={palette.nodeText}
               >
-                Task Board
+                {copy.taskBoard}
               </text>
               <text x={BOARD_CX} y={BOARD_CY + 4} textAnchor="middle" fontSize={6} fontFamily="monospace"
                 fill={palette.labelFill}
               >
-                {tasks.filter((t) => t.status === "unclaimed").length} unclaimed
+                {tasks.filter((t) => t.status === "unclaimed").length} {copy.unclaimed}
               </text>
               <text x={BOARD_CX} y={BOARD_CY + 14} textAnchor="middle" fontSize={6} fontFamily="monospace"
                 fill="#10b981"
               >
-                {tasks.filter((t) => t.status === "complete").length} complete
+                {tasks.filter((t) => t.status === "complete").length} {copy.complete}
               </text>
 
               {/* Agents */}
@@ -337,15 +434,15 @@ export default function AutonomousAgents({ title }: { title?: string }) {
               <table className="w-full text-[10px]">
                 <thead>
                   <tr className="bg-zinc-50 dark:bg-zinc-800">
-                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">Task</th>
-                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">Status</th>
-                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">Owner</th>
+                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">{copy.headers.task}</th>
+                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">{copy.headers.status}</th>
+                    <th className="px-2 py-1 text-left font-medium text-zinc-500 dark:text-zinc-400">{copy.headers.owner}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task.id} className="border-t border-zinc-100 dark:border-zinc-800">
-                      <td className="px-2 py-1 font-mono text-zinc-700 dark:text-zinc-300">{task.name}</td>
+                      <td className="px-2 py-1 font-mono text-zinc-700 dark:text-zinc-300">{copy.taskNames[task.id]}</td>
                       <td className="px-2 py-1">
                         <span className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-medium ${
                           task.status === "complete"
@@ -354,7 +451,7 @@ export default function AutonomousAgents({ title }: { title?: string }) {
                               ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                               : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                         }`}>
-                          {task.status}
+                          {copy.statuses[task.status]}
                         </span>
                       </td>
                       <td className="px-2 py-1 font-mono text-zinc-600 dark:text-zinc-400">{task.owner}</td>
@@ -367,7 +464,7 @@ export default function AutonomousAgents({ title }: { title?: string }) {
 
           {/* Right panel: FSM state machine diagram */}
           <div className="flex-1">
-            <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">FSM Cycle</div>
+            <div className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">{copy.fsmCycle}</div>
             <svg viewBox="0 0 220 220" className="w-full">
               <defs>
                 <marker
@@ -427,7 +524,7 @@ export default function AutonomousAgents({ title }: { title?: string }) {
                       fontWeight={600}
                       fill={isActive ? "white" : palette.nodeText}
                     >
-                      {state.label}
+                      {copy.phaseLabels[state.id]}
                     </text>
                   </g>
                 );
@@ -439,7 +536,7 @@ export default function AutonomousAgents({ title }: { title?: string }) {
               {FSM_STATES.map((s) => (
                 <div key={s.id} className="flex items-center gap-1">
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PHASE_COLORS[s.id] }} />
-                  <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">{s.label}</span>
+                  <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">{copy.phaseLabels[s.id]}</span>
                 </div>
               ))}
             </div>
@@ -456,8 +553,8 @@ export default function AutonomousAgents({ title }: { title?: string }) {
             onReset={vis.reset}
             isPlaying={vis.isPlaying}
             onToggleAutoPlay={vis.toggleAutoPlay}
-            stepTitle={STEPS[step].title}
-            stepDescription={STEPS[step].desc}
+            stepTitle={copy.steps[step].title}
+            stepDescription={copy.steps[step].desc}
           />
         </div>
       </div>

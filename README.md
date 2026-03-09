@@ -1,4 +1,4 @@
-[English](./README.md) | [中文](./README-zh.md) | [日本語](./README-ja.md)  
+[English](./README.md) | [中文](./README-zh.md) | [日本語](./README-ja.md) | [Русский](./README-ru.md)  
 # Learn Claude Code -- A nano Claude Code-like agent, built from 0 to 1
 <img width="260" src="https://github.com/user-attachments/assets/fe8b852b-97da-4061-a467-9694906b5edf" /><br>
 
@@ -157,7 +157,7 @@ s08  Background Tasks        [6]     s10  Team Protocols          [12]
 learn-claude-code/
 |
 |-- agents/                        # Python reference implementations (s01-s12 + s_full capstone)
-|-- docs/{en,zh,ja}/               # Mental-model-first documentation (3 languages)
+|-- docs/{en,zh,ja,ru}/            # Mental-model-first documentation (4 languages)
 |-- web/                           # Interactive learning platform (Next.js)
 |-- skills/                        # Skill files for s05
 +-- .github/workflows/ci.yml      # CI: typecheck + build
@@ -166,7 +166,7 @@ learn-claude-code/
 ## Documentation
 
 Mental-model-first: problem, solution, ASCII diagram, minimal code.
-Available in [English](./docs/en/) | [中文](./docs/zh/) | [日本語](./docs/ja/).
+Available in [English](./docs/en/) | [中文](./docs/zh/) | [日本語](./docs/ja/) | [Русский](./docs/ru/).
 
 | Session | Topic | Motto |
 |---------|-------|-------|
