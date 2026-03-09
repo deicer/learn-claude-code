@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from "@/lib/i18n";
+import { useLocale, useTranslations } from "@/lib/i18n";
 import { getFlowForVersion } from "@/data/execution-flows";
 import type { FlowNode, FlowEdge } from "@/types/agent-data";
 
@@ -187,11 +187,12 @@ interface ExecutionFlowProps {
 
 export function ExecutionFlow({ version }: ExecutionFlowProps) {
   const t = useTranslations("version");
+  const locale = useLocale();
   const [flow, setFlow] = useState<ReturnType<typeof getFlowForVersion>>(null);
 
   useEffect(() => {
-    setFlow(getFlowForVersion(version));
-  }, [version]);
+    setFlow(getFlowForVersion(version, locale));
+  }, [locale, version]);
 
   if (!flow) return null;
 

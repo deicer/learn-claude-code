@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "@/lib/i18n";
+import { ANNOTATION_RU_OVERRIDES } from "@/data/annotation-ru";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ interface Decision {
   alternatives: string;
   zh?: { title: string; description: string };
   ja?: { title: string; description: string };
+  ru?: { title: string; description: string; alternatives?: string };
 }
 
 interface AnnotationFile {
@@ -55,18 +57,29 @@ interface DesignDecisionsProps {
 function DecisionCard({
   decision,
   locale,
+  override,
 }: {
   decision: Decision;
   locale: string;
+  override?: { title: string; description: string; alternatives: string };
 }) {
   const [open, setOpen] = useState(false);
   const t = useTranslations("version");
 
   const localized =
-    locale !== "en" ? (decision as unknown as Record<string, unknown>)[locale] as { title?: string; description?: string } | undefined : undefined;
+    locale !== "en"
+      ? ((decision as unknown as Record<string, unknown>)[locale] as {
+          title?: string;
+          description?: string;
+          alternatives?: string;
+        } | undefined)
+      : undefined;
 
-  const title = localized?.title || decision.title;
-  const description = localized?.description || decision.description;
+  const title = override?.title || localized?.title || decision.title;
+  const description =
+    override?.description || localized?.description || decision.description;
+  const alternatives =
+    override?.alternatives || localized?.alternatives || decision.alternatives;
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
@@ -100,13 +113,13 @@ function DecisionCard({
                 {description}
               </p>
 
-              {decision.alternatives && (
+              {alternatives && (
                 <div className="mt-3">
                   <h4 className="text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                     {t("alternatives")}
                   </h4>
                   <p className="mt-1 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    {decision.alternatives}
+                    {alternatives}
                   </p>
                 </div>
               )}
@@ -138,7 +151,15 @@ export function DesignDecisions({ version }: DesignDecisionsProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
           >
-            <DecisionCard decision={decision} locale={locale} />
+            <DecisionCard
+              decision={decision}
+              locale={locale}
+              override={
+                locale === "ru"
+                  ? ANNOTATION_RU_OVERRIDES[version]?.[decision.id]
+                  : undefined
+              }
+            />
           </motion.div>
         ))}
       </div>

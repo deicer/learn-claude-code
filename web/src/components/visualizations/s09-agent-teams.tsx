@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 // -- Layout constants --
 const SVG_W = 560;
@@ -12,9 +13,9 @@ const AGENT_R = 40;
 
 // Agent positions: inverted triangle (Lead top-center, Coder bottom-left, Reviewer bottom-right)
 const AGENTS = [
-  { id: "lead", label: "Lead", cx: SVG_W / 2, cy: 70, inbox: "lead.jsonl" },
-  { id: "coder", label: "Coder", cx: 140, cy: 230, inbox: "coder.jsonl" },
-  { id: "reviewer", label: "Reviewer", cx: SVG_W - 140, cy: 230, inbox: "reviewer.jsonl" },
+  { id: "lead", label: "lead", cx: SVG_W / 2, cy: 70, inbox: "lead.jsonl" },
+  { id: "coder", label: "coder", cx: 140, cy: 230, inbox: "coder.jsonl" },
+  { id: "reviewer", label: "reviewer", cx: SVG_W - 140, cy: 230, inbox: "reviewer.jsonl" },
 ] as const;
 
 // Inbox tray dimensions, positioned below each agent circle
@@ -36,15 +37,63 @@ function trayCenter(id: string) {
 }
 
 // Step configuration
-const STEPS = [
-  { title: "The Team", desc: "Teams use a leader-worker pattern. Each teammate has a file-based mailbox inbox." },
-  { title: "Lead Assigns Work", desc: "Communication is async: write a message to the recipient's .jsonl inbox file." },
-  { title: "Read Inbox", desc: "Teammates poll their inbox before each LLM call. New messages become context." },
-  { title: "Independent Work", desc: "Each teammate runs its own agent loop independently." },
-  { title: "Pass Result", desc: "Results flow through the same mailbox mechanism. All communication is via files." },
-  { title: "Feedback Loop", desc: "The mailbox pattern supports any communication topology: linear, broadcast, round-robin." },
-  { title: "File-Based Coordination", desc: "No shared memory, no locks. All coordination through append-only files. Simple, robust, debuggable." },
-];
+interface AgentTeamsCopy {
+  title: string;
+  agents: Record<string, string>;
+  steps: { title: string; desc: string }[];
+  teamConfig: string;
+  workers: string;
+  taskLogin: string;
+  resultDone: string;
+  feedback: string;
+}
+
+const COPY: Record<string, AgentTeamsCopy> = {
+  en: {
+    title: "Agent Team Mailboxes",
+    agents: {
+      lead: "Lead",
+      coder: "Coder",
+      reviewer: "Reviewer",
+    },
+    steps: [
+      { title: "The Team", desc: "Teams use a leader-worker pattern. Each teammate has a file-based mailbox inbox." },
+      { title: "Lead Assigns Work", desc: "Communication is async: write a message to the recipient's .jsonl inbox file." },
+      { title: "Read Inbox", desc: "Teammates poll their inbox before each LLM call. New messages become context." },
+      { title: "Independent Work", desc: "Each teammate runs its own agent loop independently." },
+      { title: "Pass Result", desc: "Results flow through the same mailbox mechanism. All communication is via files." },
+      { title: "Feedback Loop", desc: "The mailbox pattern supports any communication topology: linear, broadcast, round-robin." },
+      { title: "File-Based Coordination", desc: "No shared memory, no locks. All coordination through append-only files. Simple, robust, debuggable." },
+    ],
+    teamConfig: "team.config",
+    workers: "workers: [coder, reviewer]",
+    taskLogin: "task:login",
+    resultDone: "result:done",
+    feedback: "feedback",
+  },
+  ru: {
+    title: "Почтовые ящики команды агентов",
+    agents: {
+      lead: "Лид",
+      coder: "Кодер",
+      reviewer: "Ревьюер",
+    },
+    steps: [
+      { title: "Команда", desc: "Команды работают по схеме лидер-исполнитель. У каждого участника есть файловый входящий ящик." },
+      { title: "Лид назначает работу", desc: "Коммуникация асинхронная: сообщение записывается в .jsonl-файл входящих сообщений получателя." },
+      { title: "Чтение ящика", desc: "Участники опрашивают свой входящий ящик перед каждым вызовом LLM. Новые сообщения становятся частью контекста." },
+      { title: "Независимая работа", desc: "Каждый участник крутит свой собственный агентный цикл." },
+      { title: "Передать результат", desc: "Результаты идут через тот же почтовый механизм. Всё общение проходит через файлы." },
+      { title: "Петля обратной связи", desc: "Почтовый шаблон поддерживает любую топологию общения: линейную, broadcast и round-robin." },
+      { title: "Координация через файлы", desc: "Никакой общей памяти и локов. Вся координация идёт через append-only файлы. Просто, надёжно и отлаживаемо." },
+    ],
+    teamConfig: "team.config",
+    workers: "workers: [coder, reviewer]",
+    taskLogin: "задача:логин",
+    resultDone: "результат:готово",
+    feedback: "отзыв",
+  },
+};
 
 // Helper: determine which agent glows at each step
 function agentGlows(agentId: string, step: number): boolean {
@@ -132,14 +181,16 @@ function TraceLine({ from, to, strokeColor }: { from: string; to: string; stroke
 }
 
 export default function AgentTeams({ title }: { title?: string }) {
-  const vis = useSteppedVisualization({ totalSteps: STEPS.length, autoPlayInterval: 2500 });
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
+  const vis = useSteppedVisualization({ totalSteps: copy.steps.length, autoPlayInterval: 2500 });
   const step = vis.currentStep;
   const palette = useSvgPalette();
 
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Agent Team Mailboxes"}
+        {title || copy.title}
       </h2>
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 min-h-[500px]">
         <div className="flex flex-col lg:flex-row gap-4">
@@ -201,7 +252,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                       fontSize={12}
                       fontWeight={700}
                     >
-                      {agent.label}
+                      {copy.agents[agent.label]}
                     </text>
 
                     {/* Inbox tray (file icon style) */}
@@ -239,10 +290,10 @@ export default function AgentTeams({ title }: { title?: string }) {
                 >
                   <rect x={12} y={12} width={100} height={44} rx={4} fill="#f0f9ff" stroke="#bae6fd" strokeWidth={1} />
                   <text x={20} y={28} fontSize={7} fontFamily="monospace" fill="#0284c7" fontWeight={600}>
-                    team.config
+                    {copy.teamConfig}
                   </text>
                   <text x={20} y={40} fontSize={6} fontFamily="monospace" fill="#0369a1">
-                    workers: [coder, reviewer]
+                    {copy.workers}
                   </text>
                 </motion.g>
               )}
@@ -256,7 +307,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                     fromY={agentById("lead").cy + AGENT_R}
                     toX={agentById("coder").cx}
                     toY={agentById("coder").cy + TRAY_OFFSET_Y + TRAY_H / 2}
-                    label="task:login"
+                    label={copy.taskLogin}
                   />
                 )}
               </AnimatePresence>
@@ -270,7 +321,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                     fromY={agentById("coder").cy + TRAY_OFFSET_Y + TRAY_H / 2}
                     toX={agentById("coder").cx}
                     toY={agentById("coder").cy}
-                    label="task:login"
+                    label={copy.taskLogin}
                   />
                 )}
               </AnimatePresence>
@@ -301,7 +352,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                       fontSize={8}
                       fontWeight={600}
                     >
-                      result:done
+                      {copy.resultDone}
                     </text>
                   </motion.g>
                 )}
@@ -316,7 +367,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                     fromY={agentById("coder").cy}
                     toX={agentById("reviewer").cx}
                     toY={agentById("reviewer").cy + TRAY_OFFSET_Y + TRAY_H / 2}
-                    label="result:done"
+                    label={copy.resultDone}
                   />
                 )}
               </AnimatePresence>
@@ -331,7 +382,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                       fromY={agentById("reviewer").cy + TRAY_OFFSET_Y + TRAY_H / 2}
                       toX={agentById("reviewer").cx}
                       toY={agentById("reviewer").cy}
-                      label="result:done"
+                      label={copy.resultDone}
                       delay={0}
                     />
                     <TravelingMessage
@@ -340,7 +391,7 @@ export default function AgentTeams({ title }: { title?: string }) {
                       fromY={agentById("reviewer").cy}
                       toX={agentById("lead").cx}
                       toY={agentById("lead").cy + TRAY_OFFSET_Y + TRAY_H / 2}
-                      label="feedback"
+                      label={copy.feedback}
                       delay={1.0}
                     />
                   </>
@@ -383,8 +434,8 @@ export default function AgentTeams({ title }: { title?: string }) {
             onReset={vis.reset}
             isPlaying={vis.isPlaying}
             onToggleAutoPlay={vis.toggleAutoPlay}
-            stepTitle={STEPS[step].title}
-            stepDescription={STEPS[step].desc}
+            stepTitle={copy.steps[step].title}
+            stepDescription={copy.steps[step].desc}
           />
         </div>
       </div>

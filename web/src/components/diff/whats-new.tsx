@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useTranslations } from "@/lib/i18n";
+import { useLocale, useTranslations } from "@/lib/i18n";
 import { Card } from "@/components/ui/card";
 
 interface WhatsNewProps {
@@ -18,6 +18,11 @@ interface WhatsNewProps {
 export function WhatsNew({ diff }: WhatsNewProps) {
   const t = useTranslations("version");
   const td = useTranslations("diff");
+  const locale = useLocale();
+  const copy =
+    locale === "ru"
+      ? { def: "функция", lines: "строк" }
+      : { def: "def", lines: "lines" };
 
   if (!diff) {
     return null;
@@ -100,7 +105,7 @@ export function WhatsNew({ diff }: WhatsNewProps) {
                 {diff.newFunctions.map((fn) => (
                   <li key={fn} className="font-mono">
                     <span className="text-zinc-400 dark:text-zinc-500">
-                      def{" "}
+                      {copy.def}{" "}
                     </span>
                     {fn}()
                   </li>
@@ -122,7 +127,7 @@ export function WhatsNew({ diff }: WhatsNewProps) {
                   {td("loc_delta")}
                 </h3>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +{diff.locDelta} lines
+                  +{diff.locDelta} {copy.lines}
                 </p>
               </div>
             </Card>

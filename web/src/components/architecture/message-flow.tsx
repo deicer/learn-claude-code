@@ -2,26 +2,43 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const FLOW_STEPS = [
-  { role: "user", label: "user", color: "bg-blue-500" },
-  { role: "assistant", label: "assistant", color: "bg-zinc-600" },
-  { role: "tool_call", label: "tool_call", color: "bg-amber-500" },
-  { role: "tool_result", label: "tool_result", color: "bg-emerald-500" },
-  { role: "assistant", label: "assistant", color: "bg-zinc-600" },
-  { role: "tool_call", label: "tool_call", color: "bg-amber-500" },
-  { role: "tool_result", label: "tool_result", color: "bg-emerald-500" },
-  { role: "assistant", label: "assistant (final)", color: "bg-zinc-600" },
-];
+import { useLocale } from "@/lib/i18n";
 
 export function MessageFlow() {
+  const locale = useLocale();
   const [count, setCount] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const labels =
+    locale === "ru"
+      ? {
+          user: "пользователь",
+          assistant: "ассистент",
+          toolCall: "вызов_инструмента",
+          toolResult: "результат_инструмента",
+          final: "ассистент (финал)",
+        }
+      : {
+          user: "user",
+          assistant: "assistant",
+          toolCall: "tool_call",
+          toolResult: "tool_result",
+          final: "assistant (final)",
+        };
+  const flowSteps = [
+    { role: "user", label: labels.user, color: "bg-blue-500" },
+    { role: "assistant", label: labels.assistant, color: "bg-zinc-600" },
+    { role: "tool_call", label: labels.toolCall, color: "bg-amber-500" },
+    { role: "tool_result", label: labels.toolResult, color: "bg-emerald-500" },
+    { role: "assistant", label: labels.assistant, color: "bg-zinc-600" },
+    { role: "tool_call", label: labels.toolCall, color: "bg-amber-500" },
+    { role: "tool_result", label: labels.toolResult, color: "bg-emerald-500" },
+    { role: "assistant", label: labels.final, color: "bg-zinc-600" },
+  ];
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setCount((prev) => {
-        if (prev >= FLOW_STEPS.length) {
+        if (prev >= flowSteps.length) {
           setTimeout(() => setCount(0), 1500);
           return prev;
         }
@@ -31,7 +48,7 @@ export function MessageFlow() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [flowSteps.length]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
@@ -45,7 +62,7 @@ export function MessageFlow() {
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <AnimatePresence>
-          {FLOW_STEPS.slice(0, count).map((step, i) => (
+          {flowSteps.slice(0, count).map((step, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, scale: 0.7, width: 0 }}

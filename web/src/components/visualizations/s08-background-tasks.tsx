@@ -4,48 +4,119 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useDarkMode, useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 interface StepInfo {
   title: string;
   description: string;
 }
 
-const STEP_INFO: StepInfo[] = [
-  {
-    title: "Three Lanes",
-    description:
-      "The agent has a main thread and can spawn daemon background threads for parallel work.",
+interface BackgroundTasksCopy {
+  title: string;
+  stepInfo: StepInfo[];
+  workLabels: {
+    mainLoop: string;
+    runTests: string;
+    lintCode: string;
+    lintResult: string;
+    testResult: string;
+  };
+  laneLabels: {
+    main: string;
+    bg1: string;
+    bg2: string;
+  };
+  time: string;
+  done: string;
+  llmCall: string;
+  notification: string;
+  queue: string;
+  queueDrained: string;
+  legend: {
+    main: string;
+    bg1: string;
+    bg2: string;
+    boundary: string;
+  };
+  ariaLabel: string;
+}
+
+const COPY: Record<string, BackgroundTasksCopy> = {
+  en: {
+    title: "Background Task Lanes",
+    stepInfo: [
+      { title: "Three Lanes", description: "The agent has a main thread and can spawn daemon background threads for parallel work." },
+      { title: "Main Thread Working", description: "The main agent loop runs as usual, processing user requests." },
+      { title: "Spawn Background", description: "Background tasks run as daemon threads. The main loop doesn't wait for them." },
+      { title: "Multiple Backgrounds", description: "Multiple background tasks can run concurrently." },
+      { title: "Task Completes", description: "Background task finishes. Its result goes to the notification queue." },
+      { title: "Queue Fills", description: "Results accumulate in the queue, invisible to the model during this turn." },
+      { title: "Drain Queue", description: "Just before the next LLM call, all queued notifications are injected as tool_results. Non-blocking, async." },
+    ],
+    workLabels: {
+      mainLoop: "Main agent loop",
+      runTests: "Run tests",
+      lintCode: "Lint code",
+      lintResult: "Lint: 0 errors",
+      testResult: "Tests: 42 passed",
+    },
+    laneLabels: {
+      main: "Main Thread",
+      bg1: "Background 1",
+      bg2: "Background 2",
+    },
+    time: "time",
+    done: "done",
+    llmCall: "LLM API call",
+    notification: "Notification",
+    queue: "Queue",
+    queueDrained: "queue drained -- injected into next LLM call",
+    legend: {
+      main: "Main thread",
+      bg1: "Background 1",
+      bg2: "Background 2",
+      boundary: "LLM boundary",
+    },
+    ariaLabel: "Background task lanes",
   },
-  {
-    title: "Main Thread Working",
-    description:
-      "The main agent loop runs as usual, processing user requests.",
+  ru: {
+    title: "Фоновые дорожки задач",
+    stepInfo: [
+      { title: "Три дорожки", description: "У агента есть основной поток, а для параллельной работы он может поднимать фоновые демон-потоки." },
+      { title: "Работает основной поток", description: "Основной цикл агента идёт как обычно и обрабатывает запрос пользователя." },
+      { title: "Запуск фона", description: "Фоновые задачи работают как демон-потоки. Основной цикл их не ждёт." },
+      { title: "Несколько фоновых задач", description: "Несколько фоновых задач могут выполняться одновременно." },
+      { title: "Задача завершилась", description: "Фоновая задача заканчивается, и её результат попадает в очередь уведомлений." },
+      { title: "Очередь заполняется", description: "Результаты копятся в очереди и не видны модели в текущем ходе." },
+      { title: "Слить очередь", description: "Прямо перед следующим вызовом LLM все накопленные уведомления вкалываются как tool_results. Неблокирующе и асинхронно." },
+    ],
+    workLabels: {
+      mainLoop: "Основной цикл агента",
+      runTests: "Запуск тестов",
+      lintCode: "Линтинг кода",
+      lintResult: "Линт: 0 ошибок",
+      testResult: "Тесты: 42 пройдено",
+    },
+    laneLabels: {
+      main: "Основной поток",
+      bg1: "Фон 1",
+      bg2: "Фон 2",
+    },
+    time: "время",
+    done: "готово",
+    llmCall: "Вызов API LLM",
+    notification: "Очередь",
+    queue: "уведомлений",
+    queueDrained: "очередь слита -- вставлена в следующий вызов LLM",
+    legend: {
+      main: "Основной поток",
+      bg1: "Фон 1",
+      bg2: "Фон 2",
+      boundary: "Граница LLM",
+    },
+    ariaLabel: "Фоновые дорожки задач",
   },
-  {
-    title: "Spawn Background",
-    description:
-      "Background tasks run as daemon threads. The main loop doesn't wait for them.",
-  },
-  {
-    title: "Multiple Backgrounds",
-    description: "Multiple background tasks can run concurrently.",
-  },
-  {
-    title: "Task Completes",
-    description:
-      "Background task finishes. Its result goes to the notification queue.",
-  },
-  {
-    title: "Queue Fills",
-    description:
-      "Results accumulate in the queue, invisible to the model during this turn.",
-  },
-  {
-    title: "Drain Queue",
-    description:
-      "Just before the next LLM call, all queued notifications are injected as tool_results. Non-blocking, async.",
-  },
-];
+};
 
 const LANE_Y = {
   main: 60,
@@ -76,7 +147,7 @@ const WORK_BLOCKS: WorkBlock[] = [
     startFraction: 0,
     endFraction: 1,
     color: "#8b5cf6",
-    label: "Main agent loop",
+    label: "mainLoop",
     appearsAtStep: 1,
   },
   {
@@ -84,7 +155,7 @@ const WORK_BLOCKS: WorkBlock[] = [
     startFraction: 0.18,
     endFraction: 0.75,
     color: "#10b981",
-    label: "Run tests",
+    label: "runTests",
     appearsAtStep: 2,
     completesAtStep: 5,
   },
@@ -93,7 +164,7 @@ const WORK_BLOCKS: WorkBlock[] = [
     startFraction: 0.35,
     endFraction: 0.58,
     color: "#3b82f6",
-    label: "Lint code",
+    label: "lintCode",
     appearsAtStep: 3,
     completesAtStep: 4,
   },
@@ -120,13 +191,13 @@ interface QueueCard {
 const QUEUE_CARDS: QueueCard[] = [
   {
     id: "lint-result",
-    label: "Lint: 0 errors",
+    label: "lintResult",
     appearsAtStep: 4,
     drainsAtStep: 6,
   },
   {
     id: "test-result",
-    label: "Tests: 42 passed",
+    label: "testResult",
     appearsAtStep: 5,
     drainsAtStep: 6,
   },
@@ -149,6 +220,8 @@ function getBlockEndFraction(block: WorkBlock, step: number): number {
 }
 
 export default function BackgroundTasks({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -162,7 +235,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
   const isDark = useDarkMode();
   const palette = useSvgPalette();
 
-  const stepInfo = STEP_INFO[currentStep];
+  const stepInfo = copy.stepInfo[currentStep];
 
   const llmCallFraction = 0.82;
   const showLlmMarker = currentStep >= 5;
@@ -170,11 +243,11 @@ export default function BackgroundTasks({ title }: { title?: string }) {
   return (
     <section className="min-h-[500px] space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Background Task Lanes"}
+        {title || copy.title}
       </h2>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-        <svg viewBox="0 0 780 380" className="w-full" aria-label="Background task lanes">
+        <svg viewBox="0 0 780 380" className="w-full" aria-label={copy.ariaLabel}>
           <defs>
             <marker
               id="forkArrow"
@@ -237,15 +310,15 @@ export default function BackgroundTasks({ title }: { title?: string }) {
             fill={palette.labelFill}
             textAnchor="end"
           >
-            time
+            {copy.time}
           </text>
 
           {/* Lane backgrounds and labels */}
           {(
             [
-              { key: "main", y: LANE_Y.main, label: "Main Thread" },
-              { key: "bg1", y: LANE_Y.bg1, label: "Background 1" },
-              { key: "bg2", y: LANE_Y.bg2, label: "Background 2" },
+              { key: "main", y: LANE_Y.main, label: copy.laneLabels.main },
+              { key: "bg1", y: LANE_Y.bg1, label: copy.laneLabels.bg1 },
+              { key: "bg2", y: LANE_Y.bg2, label: copy.laneLabels.bg2 },
             ] as const
           ).map(({ key, y, label }) => (
             <g key={key}>
@@ -321,7 +394,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    {block.label}
+                    {copy.workLabels[block.label as keyof typeof copy.workLabels]}
                   </motion.text>
                 )}
                 {isComplete && (
@@ -335,7 +408,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
-                    done
+                    {copy.done}
                   </motion.text>
                 )}
               </motion.g>
@@ -399,7 +472,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
                 fontWeight="600"
                 fill="white"
               >
-                LLM API call
+                {copy.llmCall}
               </text>
             </motion.g>
           )}
@@ -423,7 +496,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
             fontWeight="600"
             fill={palette.labelFill}
           >
-            Notification
+            {copy.notification}
           </text>
           <text
             x={TIMELINE_LEFT - 10}
@@ -433,7 +506,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
             fontWeight="600"
             fill={palette.labelFill}
           >
-            Queue
+            {copy.queue}
           </text>
 
           {/* Queue cards */}
@@ -488,7 +561,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
                       fontFamily="monospace"
                       fill={isDark ? "#f59e0b" : "#92400e"}
                     >
-                      {card.label}
+                      {copy.workLabels[card.label as keyof typeof copy.workLabels]}
                     </text>
                   </motion.g>
                 );
@@ -531,9 +604,9 @@ export default function BackgroundTasks({ title }: { title?: string }) {
                     fontFamily="monospace"
                     fill={isDark ? "#10b981" : "#065f46"}
                   >
-                    {card.label}
-                  </text>
-                </motion.g>
+                      {copy.workLabels[card.label as keyof typeof copy.workLabels]}
+                    </text>
+                  </motion.g>
               );
             })}
           </AnimatePresence>
@@ -574,7 +647,7 @@ export default function BackgroundTasks({ title }: { title?: string }) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              queue drained -- injected into next LLM call
+              {copy.queueDrained}
             </motion.text>
           )}
         </svg>
@@ -584,25 +657,25 @@ export default function BackgroundTasks({ title }: { title?: string }) {
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded" style={{ background: "#8b5cf6" }} />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              Main thread
+              {copy.legend.main}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded" style={{ background: "#10b981" }} />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              Background 1
+              {copy.legend.bg1}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded" style={{ background: "#3b82f6" }} />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              Background 2
+              {copy.legend.bg2}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded" style={{ background: "#f59e0b" }} />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              LLM boundary
+              {copy.legend.boundary}
             </span>
           </div>
         </div>

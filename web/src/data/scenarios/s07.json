@@ -6,48 +6,81 @@
     {
       "type": "user_message",
       "content": "Build a REST API with user auth, database, and deployment config",
-      "annotation": "Multi-part task requiring dependency tracking"
+      "annotation": "Multi-part task requiring dependency tracking",
+      "ru": {
+        "content": "Собери REST API с авторизацией пользователей, базой данных и конфигом для деплоя",
+        "annotation": "Составная задача, где нужно отслеживать зависимости между частями работы"
+      }
     },
     {
       "type": "tool_call",
       "content": "create_task(\"Set up database schema\", deps=[])\ncreate_task(\"Implement user model\", deps=[1])\ncreate_task(\"Add auth endpoints\", deps=[2])\ncreate_task(\"Write deployment config\", deps=[3])",
       "toolName": "task_manager",
-      "annotation": "TaskManager creates file-based tasks with explicit dependencies"
+      "annotation": "TaskManager creates file-based tasks with explicit dependencies",
+      "ru": {
+        "annotation": "TaskManager создаёт файловые задачи с явными зависимостями"
+      }
     },
     {
       "type": "tool_result",
       "content": "Created 4 tasks in .tasks/\n  #1 Set up database schema [ready]\n  #2 Implement user model [blocked by #1]\n  #3 Add auth endpoints [blocked by #2]\n  #4 Write deployment config [blocked by #3]",
       "toolName": "task_manager",
-      "annotation": "Tasks persisted to .tasks/ directory as JSON files"
+      "annotation": "Tasks persisted to .tasks/ directory as JSON files",
+      "ru": {
+        "content": "Создано 4 задачи в .tasks/\n  #1 Подготовить схему БД [готова к запуску]\n  #2 Реализовать модель пользователя [заблокирована задачей #1]\n  #3 Добавить auth-эндпоинты [заблокирована задачей #2]\n  #4 Написать конфиг деплоя [заблокирована задачей #3]",
+        "annotation": "Задачи сохранены в каталоге .tasks/ как JSON-файлы"
+      }
     },
     {
       "type": "tool_call",
       "content": "schema.sql\n---\nCREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT);",
       "toolName": "write_file",
-      "annotation": "Working on task #1"
+      "annotation": "Working on task #1",
+      "ru": {
+        "annotation": "Идёт работа над задачей #1"
+      }
     },
     {
       "type": "tool_result",
       "content": "File written successfully",
       "toolName": "write_file",
-      "annotation": "Schema created"
+      "annotation": "Schema created",
+      "ru": {
+        "content": "Файл успешно записан",
+        "annotation": "Схема создана"
+      }
     },
     {
       "type": "tool_call",
       "content": "complete_task(1)",
       "toolName": "task_manager",
-      "annotation": "Completing task #1 automatically unblocks task #2"
+      "annotation": "Completing task #1 automatically unblocks task #2",
+      "ru": {
+        "annotation": "Завершение задачи #1 автоматически разблокирует задачу #2"
+      }
     },
     {
       "type": "tool_result",
       "content": "Task #1 completed. Task #2 is now ready.",
       "toolName": "task_manager",
-      "annotation": "File-based persistence outlives process memory"
+      "annotation": "File-based persistence outlives process memory",
+      "ru": {
+        "content": "Задача #1 завершена. Задача #2 теперь готова к работе.",
+        "annotation": "Файловая персистентность переживает память конкретного процесса"
+      }
     },
     {
       "type": "assistant_text",
       "content": "Database schema is done. Moving to user model implementation.",
-      "annotation": "Dependency graph ensures tasks execute in correct order"
+      "annotation": "Dependency graph ensures tasks execute in correct order",
+      "ru": {
+        "content": "Схема базы данных готова. Перехожу к реализации модели пользователя.",
+        "annotation": "Граф зависимостей гарантирует, что задачи выполняются в правильном порядке"
+      }
     }
-  ]
+  ],
+  "ru": {
+    "title": "Система задач",
+    "description": "Агент использует файловые задачи с постоянным состоянием и зависимостями"
+  }
 }

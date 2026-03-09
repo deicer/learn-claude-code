@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 type Protocol = "shutdown" | "plan";
 
@@ -23,19 +24,69 @@ const ARROW_Y_GAP = 70;
 const REQUEST_ID = "req_abc";
 
 // -- Shutdown protocol step definitions --
-const SHUTDOWN_STEPS = [
-  { title: "Structured Protocols", desc: "Protocols define structured message exchanges with correlated request IDs." },
-  { title: "Shutdown Request", desc: "The leader initiates shutdown. The request_id links the request to its response." },
-  { title: "Teammate Decides", desc: "The teammate can accept or reject. It's not a forced kill -- it's a polite request." },
-  { title: "Approved", desc: "Same request_id in the response. Teammate exits cleanly." },
-];
+interface TeamProtocolsCopy {
+  title: string;
+  shutdownSteps: { title: string; desc: string }[];
+  planSteps: { title: string; desc: string }[];
+  leader: string;
+  teammate: string;
+  shutdownProtocol: string;
+  planProtocol: string;
+  approve: string;
+  reject: string;
+  exit: string;
+  plan: string;
+  ok: string;
+}
 
-// -- Plan approval protocol step definitions --
-const PLAN_STEPS = [
-  { title: "Plan Approval", desc: "Teammates in plan_mode must get approval before implementing changes." },
-  { title: "Submit Plan", desc: "The teammate designs a plan and sends it to the leader for review." },
-  { title: "Leader Reviews", desc: "Leader reviews and approves or rejects with feedback. Same request-response pattern." },
-];
+const COPY: Record<string, TeamProtocolsCopy> = {
+  en: {
+    title: "FSM Team Protocols",
+    shutdownSteps: [
+      { title: "Structured Protocols", desc: "Protocols define structured message exchanges with correlated request IDs." },
+      { title: "Shutdown Request", desc: "The leader initiates shutdown. The request_id links the request to its response." },
+      { title: "Teammate Decides", desc: "The teammate can accept or reject. It's not a forced kill -- it's a polite request." },
+      { title: "Approved", desc: "Same request_id in the response. Teammate exits cleanly." },
+    ],
+    planSteps: [
+      { title: "Plan Approval", desc: "Teammates in plan_mode must get approval before implementing changes." },
+      { title: "Submit Plan", desc: "The teammate designs a plan and sends it to the leader for review." },
+      { title: "Leader Reviews", desc: "Leader reviews and approves or rejects with feedback. Same request-response pattern." },
+    ],
+    leader: "Leader",
+    teammate: "Teammate",
+    shutdownProtocol: "Shutdown Protocol",
+    planProtocol: "Plan Approval Protocol",
+    approve: "approve",
+    reject: "reject",
+    exit: "exit",
+    plan: "Plan:",
+    ok: "OK",
+  },
+  ru: {
+    title: "Командные протоколы FSM",
+    shutdownSteps: [
+      { title: "Структурированные протоколы", desc: "Протоколы задают структурированный обмен сообщениями с согласованными идентификаторами запросов." },
+      { title: "Запрос на завершение", desc: "Лидер инициирует shutdown. Идентификатор запроса связывает запрос с ответом." },
+      { title: "Участник решает", desc: "Участник может принять или отклонить запрос. Это не принудительное убийство, а вежливая просьба." },
+      { title: "Одобрено", desc: "В ответе используется тот же идентификатор запроса. Участник завершает работу чисто." },
+    ],
+    planSteps: [
+      { title: "Одобрение плана", desc: "Участники в plan_mode должны получить одобрение, прежде чем вносить изменения." },
+      { title: "Отправка плана", desc: "Участник составляет план и отправляет его лидеру на проверку." },
+      { title: "Лидер проверяет", desc: "Лидер проверяет и одобряет либо отклоняет с обратной связью. Тот же шаблон «запрос-ответ»." },
+    ],
+    leader: "Лидер",
+    teammate: "Участник",
+    shutdownProtocol: "Протокол shutdown",
+    planProtocol: "Протокол одобрения плана",
+    approve: "одобрить",
+    reject: "отклонить",
+    exit: "выход",
+    plan: "План:",
+    ok: "OK",
+  },
+};
 
 // Horizontal arrow between lifelines
 function SequenceArrow({
@@ -128,7 +179,7 @@ function SequenceArrow({
 }
 
 // Decision diamond on a lifeline
-function DecisionBox({ x, y }: { x: number; y: number }) {
+function DecisionBox({ x, y, approve, reject }: { x: number; y: number; approve: string; reject: string }) {
   const size = 14;
   return (
     <motion.g
@@ -146,10 +197,10 @@ function DecisionBox({ x, y }: { x: number; y: number }) {
         ?
       </text>
       <text x={x + size + 6} y={y - 4} fontSize={6} fontFamily="monospace" fill="#10b981">
-        approve
+        {approve}
       </text>
       <text x={x + size + 6} y={y + 6} fontSize={6} fontFamily="monospace" fill="#ef4444">
-        reject
+        {reject}
       </text>
     </motion.g>
   );
@@ -183,10 +234,12 @@ function ActivationBar({
 }
 
 export default function TeamProtocols({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const [protocol, setProtocol] = useState<Protocol>("shutdown");
 
-  const totalSteps = protocol === "shutdown" ? SHUTDOWN_STEPS.length : PLAN_STEPS.length;
-  const steps = protocol === "shutdown" ? SHUTDOWN_STEPS : PLAN_STEPS;
+  const totalSteps = protocol === "shutdown" ? copy.shutdownSteps.length : copy.planSteps.length;
+  const steps = protocol === "shutdown" ? copy.shutdownSteps : copy.planSteps;
 
   const vis = useSteppedVisualization({ totalSteps, autoPlayInterval: 2500 });
   const step = vis.currentStep;
@@ -197,13 +250,13 @@ export default function TeamProtocols({ title }: { title?: string }) {
     vis.reset();
   };
 
-  const leftLabel = protocol === "shutdown" ? "Leader" : "Leader";
-  const rightLabel = protocol === "shutdown" ? "Teammate" : "Teammate";
+  const leftLabel = copy.leader;
+  const rightLabel = copy.teammate;
 
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "FSM Team Protocols"}
+        {title || copy.title}
       </h2>
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900 min-h-[500px]">
         {/* Protocol toggle */}
@@ -216,7 +269,7 @@ export default function TeamProtocols({ title }: { title?: string }) {
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
             }`}
           >
-            Shutdown Protocol
+            {copy.shutdownProtocol}
           </button>
           <button
             onClick={() => switchProtocol("plan")}
@@ -226,7 +279,7 @@ export default function TeamProtocols({ title }: { title?: string }) {
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
             }`}
           >
-            Plan Approval Protocol
+            {copy.planProtocol}
           </button>
         </div>
 
@@ -317,6 +370,8 @@ export default function TeamProtocols({ title }: { title?: string }) {
                   <DecisionBox
                     x={LIFELINE_RIGHT_X + 50}
                     y={ARROW_Y_START + ARROW_Y_GAP}
+                    approve={copy.approve}
+                    reject={copy.reject}
                   />
                 )}
 
@@ -364,7 +419,7 @@ export default function TeamProtocols({ title }: { title?: string }) {
                       fill="#ef4444"
                       fontWeight={600}
                     >
-                      exit
+                      {copy.exit}
                     </text>
                   </motion.g>
                 )}
@@ -423,7 +478,7 @@ export default function TeamProtocols({ title }: { title?: string }) {
                       strokeWidth={0.5}
                     />
                     <text x={28} y={ARROW_Y_START + 34} fontSize={6} fontFamily="monospace" fill={palette.nodeText} fontWeight={600}>
-                      Plan:
+                      {copy.plan}
                     </text>
                     <text x={28} y={ARROW_Y_START + 44} fontSize={5.5} fontFamily="monospace" fill={palette.labelFill}>
                       1. Add error handler
@@ -468,7 +523,7 @@ export default function TeamProtocols({ title }: { title?: string }) {
                       fill="white"
                       fontWeight={700}
                     >
-                      OK
+                      {copy.ok}
                     </text>
                   </motion.g>
                 )}

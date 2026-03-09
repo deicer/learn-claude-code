@@ -4,6 +4,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useTranslations, useLocale } from "@/lib/i18n";
 import { LEARNING_PATH, VERSION_META, LAYERS } from "@/lib/constants";
+import {
+  getTranslatedLayerLabel,
+  getTranslatedSessionTitle,
+  getTranslatedVersionField,
+} from "@/lib/version-i18n";
 import { LayerBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import versionsData from "@/data/generated/versions.json";
@@ -44,6 +49,9 @@ const MAX_LOC = Math.max(
 
 export function Timeline() {
   const t = useTranslations("timeline");
+  const tLayer = useTranslations("layer_labels");
+  const tSession = useTranslations("sessions");
+  const tMeta = useTranslations("version_meta");
   const tv = useTranslations("version");
   const locale = useLocale();
 
@@ -60,7 +68,9 @@ export function Timeline() {
               <span
                 className={cn("h-3 w-3 rounded-full", LAYER_DOT_BG[layer.id])}
               />
-              <span className="text-xs font-medium">{layer.label}</span>
+              <span className="text-xs font-medium">
+                {getTranslatedLayerLabel(tLayer, layer.id, layer.label)}
+              </span>
             </div>
           ))}
         </div>
@@ -114,14 +124,14 @@ export function Timeline() {
                   <div className="flex flex-wrap items-start gap-2">
                     <LayerBadge layer={meta.layer}>{versionId}</LayerBadge>
                     <span className="text-xs text-[var(--color-text-secondary)]">
-                      {meta.coreAddition}
+                      {getTranslatedVersionField(tMeta, versionId, "coreAddition", meta.coreAddition)}
                     </span>
                   </div>
 
                   <h3 className="mt-2 text-base font-semibold sm:text-lg">
-                    {meta.title}
+                    {getTranslatedSessionTitle(tSession, versionId, meta.title)}
                     <span className="ml-2 text-sm font-normal text-[var(--color-text-secondary)]">
-                      {meta.subtitle}
+                      {getTranslatedVersionField(tMeta, versionId, "subtitle", meta.subtitle)}
                     </span>
                   </h3>
 
@@ -149,7 +159,12 @@ export function Timeline() {
                   {/* Key insight */}
                   {meta.keyInsight && (
                     <p className="mt-3 text-sm italic text-[var(--color-text-secondary)]">
-                      &ldquo;{meta.keyInsight}&rdquo;
+                      &ldquo;{getTranslatedVersionField(
+                        tMeta,
+                        versionId,
+                        "keyInsight",
+                        meta.keyInsight
+                      )}&rdquo;
                     </p>
                   )}
 

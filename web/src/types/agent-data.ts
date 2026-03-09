@@ -25,7 +25,7 @@ export interface VersionDiff {
 
 export interface DocContent {
   version: string;
-  locale: "en" | "zh" | "ja";
+  locale: "en" | "zh" | "ja" | "ru";
   title: string;
   content: string; // raw markdown
 }
@@ -48,6 +48,10 @@ export interface SimStep {
   annotation: string;
   toolName?: string;
   toolInput?: string;
+  ru?: {
+    content?: string;
+    annotation?: string;
+  };
 }
 
 export interface Scenario {
@@ -55,6 +59,10 @@ export interface Scenario {
   title: string;
   description: string;
   steps: SimStep[];
+  ru?: {
+    title?: string;
+    description?: string;
+  };
 }
 
 export interface FlowNode {

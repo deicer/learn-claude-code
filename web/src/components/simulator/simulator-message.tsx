@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { SimStep } from "@/types/agent-data";
 import { User, Bot, Terminal, ArrowRight, AlertCircle } from "lucide-react";
@@ -47,8 +48,18 @@ const TYPE_CONFIG: Record<
 };
 
 export function SimulatorMessage({ step, index }: SimulatorMessageProps) {
+  const locale = useLocale();
   const config = TYPE_CONFIG[step.type] || TYPE_CONFIG.assistant_text;
   const Icon = config.icon;
+  const ruLabels: Record<string, string> = {
+    User: "Пользователь",
+    Assistant: "Ассистент",
+    "Tool Call": "Вызов инструмента",
+    "Tool Result": "Результат инструмента",
+    System: "Система",
+  };
+  const label = locale === "ru" ? (ruLabels[config.label] || config.label) : config.label;
+  const emptyText = locale === "ru" ? "(пусто)" : "(empty)";
 
   return (
     <motion.div
@@ -64,7 +75,7 @@ export function SimulatorMessage({ step, index }: SimulatorMessageProps) {
       <div className="mb-1.5 flex items-center gap-2">
         <Icon size={14} className="shrink-0 text-[var(--color-text-secondary)]" />
         <span className="text-xs font-medium text-[var(--color-text-secondary)]">
-          {config.label}
+          {label}
           {step.toolName && (
             <span className="ml-1.5 font-mono text-[var(--color-text)]">
               {step.toolName}
@@ -75,7 +86,7 @@ export function SimulatorMessage({ step, index }: SimulatorMessageProps) {
 
       {step.type === "tool_call" || step.type === "tool_result" ? (
         <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-zinc-900 p-2.5 font-mono text-xs leading-relaxed text-zinc-100 dark:bg-zinc-950">
-          {step.content || "(empty)"}
+          {step.content || emptyText}
         </pre>
       ) : step.type === "system_event" ? (
         <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-purple-900/80 p-2.5 font-mono text-xs leading-relaxed text-purple-100 dark:bg-purple-950">

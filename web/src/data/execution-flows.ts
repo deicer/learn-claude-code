@@ -310,6 +310,89 @@ export const EXECUTION_FLOWS: Record<string, FlowDefinition> = {
   },
 };
 
-export function getFlowForVersion(version: string): FlowDefinition | null {
-  return EXECUTION_FLOWS[version] ?? null;
+const RU_LABELS: Record<string, string> = {
+  "User Input": "Ввод пользователя",
+  "LLM Call": "Вызов LLM",
+  "tool_use?": "tool_use?",
+  "Execute Bash": "Выполнить Bash",
+  "Append Result": "Добавить результат",
+  Output: "Ответ",
+  "Tool Dispatch": "Диспетчеризация инструмента",
+  "Create Todos": "Создать todo",
+  "Execute Tool": "Выполнить инструмент",
+  "task tool?": "инструмент task?",
+  "Spawn Subagent\n(fresh messages[])": "Запустить субагента\n(свежий messages[])",
+  "Subagent Loop": "Цикл субагента",
+  "load_skill?": "load_skill?",
+  "Read SKILL.md": "Прочитать SKILL.md",
+  "Inject via\ntool_result": "Вставить через\ntool_result",
+  "Over token\nlimit?": "Лимит токенов\nпревышен?",
+  "Compress Context": "Сжать контекст",
+  "task_manager?": "task_manager?",
+  "CRUD Task\n(file-based)": "CRUD задач\n(через файлы)",
+  "Check\nDependencies": "Проверить\nзависимости",
+  "Background?": "Фоновый режим?",
+  "Spawn Thread": "Запустить поток",
+  "Notification\nQueue": "Очередь\nуведомлений",
+  "LLM Call\n(team lead)": "Вызов LLM\n(лид команды)",
+  "Team tool?": "Инструмент команды?",
+  "Spawn\nTeammate": "Запустить\nнапарника",
+  "Send Message\n(JSONL inbox)": "Отправить сообщение\n(JSONL inbox)",
+  "Teammate Agent\n(own loop)": "Агент-напарник\n(свой цикл)",
+  "Protocol?": "Протокол?",
+  "Shutdown\nRequest": "Запрос на\nостановку",
+  "FSM:\npending->approved": "FSM:\npending->approved",
+  "Teammate\nreceives request_id": "Напарник\nполучает request_id",
+  "Check Inbox": "Проверить inbox",
+  "Idle Cycle": "Холостой цикл",
+  "Poll Tasks\n+ Auto-Claim": "Опрос задач\n+ авто-захват",
+  "worktree tool?": "Инструмент worktree?",
+  "Task Board\\n(.tasks)": "Доска задач\\n(.tasks)",
+  "Allocate / Enter\\nWorktree": "Выделить / войти\\nв worktree",
+  "Run in\\nIsolated Dir": "Запуск в\\nизолированном каталоге",
+  "Closeout:\\nworktree_keep / remove": "Завершение:\\nworktree_keep / remove",
+  "Emit Lifecycle Events\\n(side-channel)": "Публиковать события\\nжизненного цикла",
+  "Optional Read\\nworktree_events": "Необязательное чтение\\nworktree_events",
+};
+
+const RU_EDGE_LABELS: Record<string, string> = {
+  yes: "да",
+  no: "нет",
+  task: "task",
+  other: "другое",
+  skill: "skill",
+  bg: "bg",
+  fg: "fg",
+  spawn: "spawn",
+  shutdown: "shutdown",
+  "task ops": "операции task",
+  "create/bind": "создать/bind",
+  "run/status": "run/status",
+  "allocate lane": "выделить lane",
+  "task result": "результат task",
+  "emit create": "событие create",
+  "create result": "результат create",
+  "run/status result": "результат run/status",
+  "emit closeout": "событие closeout",
+  "closeout result": "результат closeout",
+  "optional query": "необязательный запрос",
+  "events result": "результат events",
+};
+
+export function getFlowForVersion(version: string, locale = "en"): FlowDefinition | null {
+  const flow = EXECUTION_FLOWS[version] ?? null;
+  if (!flow || locale !== "ru") {
+    return flow;
+  }
+
+  return {
+    nodes: flow.nodes.map((node) => ({
+      ...node,
+      label: RU_LABELS[node.label] || node.label,
+    })),
+    edges: flow.edges.map((edge) => ({
+      ...edge,
+      label: edge.label ? RU_EDGE_LABELS[edge.label] || edge.label : edge.label,
+    })),
+  };
 }

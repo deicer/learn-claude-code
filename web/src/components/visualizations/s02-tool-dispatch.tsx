@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 // -- Tool definitions --
 
 interface ToolDef {
   name: string;
-  desc: string;
   color: string;
   activeColor: string;
   darkColor: string;
@@ -19,7 +19,6 @@ interface ToolDef {
 const TOOLS: ToolDef[] = [
   {
     name: "bash",
-    desc: "Execute shell commands",
     color: "border-orange-300 bg-orange-50",
     activeColor: "border-orange-500 bg-orange-100 ring-2 ring-orange-400",
     darkColor: "dark:border-zinc-700 dark:bg-zinc-800/50",
@@ -27,7 +26,6 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "read_file",
-    desc: "Read file contents",
     color: "border-sky-300 bg-sky-50",
     activeColor: "border-sky-500 bg-sky-100 ring-2 ring-sky-400",
     darkColor: "dark:border-zinc-700 dark:bg-zinc-800/50",
@@ -35,7 +33,6 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "write_file",
-    desc: "Create or overwrite a file",
     color: "border-emerald-300 bg-emerald-50",
     activeColor: "border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400",
     darkColor: "dark:border-zinc-700 dark:bg-zinc-800/50",
@@ -43,7 +40,6 @@ const TOOLS: ToolDef[] = [
   },
   {
     name: "edit_file",
-    desc: "Apply targeted edits",
     color: "border-violet-300 bg-violet-50",
     activeColor: "border-violet-500 bg-violet-100 ring-2 ring-violet-400",
     darkColor: "dark:border-zinc-700 dark:bg-zinc-800/50",
@@ -55,24 +51,74 @@ const TOOLS: ToolDef[] = [
 const ACTIVE_TOOL_PER_STEP: number[] = [-1, 0, 1, 2, 3, 4];
 
 // Incoming request JSON per step
-const REQUEST_PER_STEP: (string | null)[] = [
-  null,
-  '{ name: "bash", input: { cmd: "ls -la" } }',
-  '{ name: "read_file", input: { path: "src/auth.ts" } }',
-  '{ name: "write_file", input: { path: "config.json" } }',
-  '{ name: "edit_file", input: { path: "index.ts" } }',
-  null,
-];
+interface ToolDispatchCopy {
+  title: string;
+  incoming: string;
+  waiting: string;
+  allRoutes: string;
+  toolDescriptions: string[];
+  requests: (string | null)[];
+  stepInfo: { title: string; desc: string }[];
+}
 
-// Step annotations
-const STEP_INFO = [
-  { title: "The Dispatch Map", desc: "A dictionary maps tool names to handler functions. The loop code never changes." },
-  { title: "Route: bash", desc: "tool_call.name -> handlers['bash'](input). Name-based routing." },
-  { title: "Route: read_file", desc: "Same pattern, different handler. Validate input, execute, return result." },
-  { title: "Route: write_file", desc: "Every tool returns a tool_result that goes back into messages[]." },
-  { title: "Route: edit_file", desc: "Adding a new tool = adding one entry to the dispatch map." },
-  { title: "The Key Insight", desc: "The while loop stays the same. You only grow the dispatch map. That's it." },
-];
+const COPY: Record<string, ToolDispatchCopy> = {
+  en: {
+    title: "Tool Dispatch Map",
+    incoming: "Incoming:",
+    waiting: "waiting for tool_call...",
+    allRoutes: "All routes active",
+    toolDescriptions: [
+      "Execute shell commands",
+      "Read file contents",
+      "Create or overwrite a file",
+      "Apply targeted edits",
+    ],
+    requests: [
+      null,
+      '{ name: "bash", input: { cmd: "ls -la" } }',
+      '{ name: "read_file", input: { path: "src/auth.ts" } }',
+      '{ name: "write_file", input: { path: "config.json" } }',
+      '{ name: "edit_file", input: { path: "index.ts" } }',
+      null,
+    ],
+    stepInfo: [
+      { title: "The Dispatch Map", desc: "A dictionary maps tool names to handler functions. The loop code never changes." },
+      { title: "Route: bash", desc: "tool_call.name -> handlers['bash'](input). Name-based routing." },
+      { title: "Route: read_file", desc: "Same pattern, different handler. Validate input, execute, return result." },
+      { title: "Route: write_file", desc: "Every tool returns a tool_result that goes back into messages[]." },
+      { title: "Route: edit_file", desc: "Adding a new tool = adding one entry to the dispatch map." },
+      { title: "The Key Insight", desc: "The while loop stays the same. You only grow the dispatch map. That's it." },
+    ],
+  },
+  ru: {
+    title: "Карта диспетчеризации инструментов",
+    incoming: "Входящий вызов:",
+    waiting: "ожидание tool_call...",
+    allRoutes: "Все маршруты активны",
+    toolDescriptions: [
+      "Выполняет команды shell",
+      "Читает содержимое файла",
+      "Создаёт или перезаписывает файл",
+      "Вносит точечные правки",
+    ],
+    requests: [
+      null,
+      '{ name: "bash", input: { cmd: "ls -la" } }',
+      '{ name: "read_file", input: { path: "src/auth.ts" } }',
+      '{ name: "write_file", input: { path: "config.json" } }',
+      '{ name: "edit_file", input: { path: "index.ts" } }',
+      null,
+    ],
+    stepInfo: [
+      { title: "Карта диспетчеризации", desc: "Словарь сопоставляет имена инструментов функциям-обработчикам. Сам цикл при этом не меняется." },
+      { title: "Маршрут: bash", desc: "tool_call.name -> handlers['bash'](input). Маршрутизация идёт по имени." },
+      { title: "Маршрут: read_file", desc: "Тот же шаблон, другой обработчик. Валидировать вход, выполнить, вернуть результат." },
+      { title: "Маршрут: write_file", desc: "Каждый инструмент возвращает tool_result, который снова попадает в messages[]." },
+      { title: "Маршрут: edit_file", desc: "Добавить новый инструмент = добавить ещё одну запись в карту диспетчеризации." },
+      { title: "Ключевая мысль", desc: "while-цикл остаётся тем же. Растёт только карта диспетчеризации. И всё." },
+    ],
+  },
+};
 
 // SVG layout constants
 const SVG_WIDTH = 600;
@@ -93,6 +139,8 @@ function getCardX(index: number): number {
 }
 
 export default function ToolDispatch({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -105,21 +153,21 @@ export default function ToolDispatch({ title }: { title?: string }) {
 
   const palette = useSvgPalette();
   const activeToolIdx = ACTIVE_TOOL_PER_STEP[currentStep];
-  const request = REQUEST_PER_STEP[currentStep];
-  const stepInfo = STEP_INFO[currentStep];
+  const request = copy.requests[currentStep];
+  const stepInfo = copy.stepInfo[currentStep];
   const isAllActive = activeToolIdx === 4;
 
   return (
     <section className="min-h-[500px] space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Tool Dispatch Map"}
+        {title || copy.title}
       </h2>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         {/* Incoming request display */}
         <div className="mb-4 flex min-h-[32px] items-center gap-2">
           <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            Incoming:
+            {copy.incoming}
           </span>
           <AnimatePresence mode="wait">
             {request && (
@@ -141,7 +189,7 @@ export default function ToolDispatch({ title }: { title?: string }) {
                 animate={{ opacity: 0.6 }}
                 className="text-xs text-zinc-400 dark:text-zinc-600"
               >
-                waiting for tool_call...
+                {copy.waiting}
               </motion.span>
             )}
             {isAllActive && (
@@ -151,7 +199,7 @@ export default function ToolDispatch({ title }: { title?: string }) {
                 animate={{ opacity: 1 }}
                 className="text-xs font-medium text-emerald-600 dark:text-emerald-400"
               >
-                All routes active
+                {copy.allRoutes}
               </motion.span>
             )}
           </AnimatePresence>
@@ -303,7 +351,7 @@ export default function ToolDispatch({ title }: { title?: string }) {
                   animate={{ fill: isActive ? "rgba(255,255,255,0.8)" : palette.labelFill }}
                   transition={{ duration: 0.4 }}
                 >
-                  {tool.desc}
+                  {copy.toolDescriptions[i]}
                 </motion.text>
               </g>
             );

@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useLocale, useTranslations } from "@/lib/i18n";
+import { useTranslations } from "@/lib/i18n";
 import { LEARNING_PATH, VERSION_META } from "@/lib/constants";
+import {
+  getTranslatedLayerLabel,
+  getTranslatedSessionTitle,
+  getTranslatedVersionField,
+} from "@/lib/version-i18n";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayerBadge } from "@/components/ui/badge";
 import { CodeDiff } from "@/components/diff/code-diff";
@@ -15,7 +20,10 @@ const data = versionData as VersionIndex;
 
 export default function ComparePage() {
   const t = useTranslations("compare");
-  const locale = useLocale();
+  const tLayer = useTranslations("layer_labels");
+  const tSession = useTranslations("sessions");
+  const tMeta = useTranslations("version_meta");
+  const tVersion = useTranslations("version");
   const [versionA, setVersionA] = useState<string>("");
   const [versionB, setVersionB] = useState<string>("");
 
@@ -68,10 +76,10 @@ export default function ComparePage() {
             onChange={(e) => setVersionA(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
           >
-            <option value="">-- select --</option>
+            <option value="">{t("select_placeholder")}</option>
             {LEARNING_PATH.map((v) => (
               <option key={v} value={v}>
-                {v} - {VERSION_META[v]?.title}
+                {v} - {getTranslatedSessionTitle(tSession, v, VERSION_META[v]?.title || v)}
               </option>
             ))}
           </select>
@@ -88,10 +96,10 @@ export default function ComparePage() {
             onChange={(e) => setVersionB(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
           >
-            <option value="">-- select --</option>
+            <option value="">{t("select_placeholder")}</option>
             {LEARNING_PATH.map((v) => (
               <option key={v} value={v}>
-                {v} - {VERSION_META[v]?.title}
+                {v} - {getTranslatedSessionTitle(tSession, v, VERSION_META[v]?.title || v)}
               </option>
             ))}
           </select>
@@ -105,24 +113,40 @@ export default function ComparePage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>{metaA?.title || versionA}</CardTitle>
-                <p className="text-sm text-zinc-500">{metaA?.subtitle}</p>
+                <CardTitle>
+                  {metaA ? getTranslatedSessionTitle(tSession, versionA, metaA.title) : versionA}
+                </CardTitle>
+                <p className="text-sm text-zinc-500">
+                  {metaA ? getTranslatedVersionField(tMeta, versionA, "subtitle", metaA.subtitle) : ""}
+                </p>
               </CardHeader>
               <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <p>{infoA.loc} LOC</p>
-                <p>{infoA.tools.length} tools</p>
-                {metaA && <LayerBadge layer={metaA.layer}>{metaA.layer}</LayerBadge>}
+                <p>{infoA.loc} {tVersion("loc")}</p>
+                <p>{infoA.tools.length} {t("tools_label")}</p>
+                {metaA && (
+                  <LayerBadge layer={metaA.layer}>
+                    {getTranslatedLayerLabel(tLayer, metaA.layer, metaA.layer)}
+                  </LayerBadge>
+                )}
               </div>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>{metaB?.title || versionB}</CardTitle>
-                <p className="text-sm text-zinc-500">{metaB?.subtitle}</p>
+                <CardTitle>
+                  {metaB ? getTranslatedSessionTitle(tSession, versionB, metaB.title) : versionB}
+                </CardTitle>
+                <p className="text-sm text-zinc-500">
+                  {metaB ? getTranslatedVersionField(tMeta, versionB, "subtitle", metaB.subtitle) : ""}
+                </p>
               </CardHeader>
               <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <p>{infoB.loc} LOC</p>
-                <p>{infoB.tools.length} tools</p>
-                {metaB && <LayerBadge layer={metaB.layer}>{metaB.layer}</LayerBadge>}
+                <p>{infoB.loc} {tVersion("loc")}</p>
+                <p>{infoB.tools.length} {t("tools_label")}</p>
+                {metaB && (
+                  <LayerBadge layer={metaB.layer}>
+                    {getTranslatedLayerLabel(tLayer, metaB.layer, metaB.layer)}
+                  </LayerBadge>
+                )}
               </div>
             </Card>
           </div>
@@ -133,13 +157,13 @@ export default function ComparePage() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
                 <h3 className="mb-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                  {metaA?.title || versionA}
+                  {metaA ? getTranslatedSessionTitle(tSession, versionA, metaA.title) : versionA}
                 </h3>
                 <ArchDiagram version={versionA} />
               </div>
               <div>
                 <h3 className="mb-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                  {metaB?.title || versionB}
+                  {metaB ? getTranslatedSessionTitle(tSession, versionB, metaB.title) : versionB}
                 </h3>
                 <ArchDiagram version={versionB} />
               </div>
@@ -235,7 +259,7 @@ export default function ComparePage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               <div>
                 <h4 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                  {t("only_in")} {metaA?.title || versionA}
+                  {t("only_in")} {metaA ? getTranslatedSessionTitle(tSession, versionA, metaA.title) : versionA}
                 </h4>
                 {comparison.toolsOnlyA.length === 0 ? (
                   <p className="text-xs text-zinc-400">{t("none")}</p>
@@ -267,7 +291,7 @@ export default function ComparePage() {
               </div>
               <div>
                 <h4 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                  {t("only_in")} {metaB?.title || versionB}
+                  {t("only_in")} {metaB ? getTranslatedSessionTitle(tSession, versionB, metaB.title) : versionB}
                 </h4>
                 {comparison.toolsOnlyB.length === 0 ? (
                   <p className="text-xs text-zinc-400">{t("none")}</p>

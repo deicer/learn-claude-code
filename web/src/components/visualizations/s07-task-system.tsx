@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useSteppedVisualization } from "@/hooks/useSteppedVisualization";
 import { StepControls } from "@/components/visualizations/shared/step-controls";
 import { useDarkMode, useSvgPalette } from "@/hooks/useDarkMode";
+import { useLocale } from "@/lib/i18n";
 
 type TaskStatus = "pending" | "in_progress" | "completed" | "blocked";
 
@@ -22,51 +23,87 @@ interface StepInfo {
 }
 
 const TASKS: TaskNode[] = [
-  { id: "T1", label: "T1: Setup DB", x: 80, y: 160, deps: [] },
-  { id: "T2", label: "T2: API routes", x: 280, y: 80, deps: ["T1"] },
-  { id: "T3", label: "T3: Auth module", x: 280, y: 240, deps: ["T1"] },
-  { id: "T4", label: "T4: Integration", x: 480, y: 160, deps: ["T2", "T3"] },
-  { id: "T5", label: "T5: Deploy", x: 650, y: 160, deps: ["T4"] },
+  { id: "T1", label: "T1", x: 80, y: 160, deps: [] },
+  { id: "T2", label: "T2", x: 280, y: 80, deps: ["T1"] },
+  { id: "T3", label: "T3", x: 280, y: 240, deps: ["T1"] },
+  { id: "T4", label: "T4", x: 480, y: 160, deps: ["T2", "T3"] },
+  { id: "T5", label: "T5", x: 650, y: 160, deps: ["T4"] },
 ];
 
 const NODE_W = 140;
 const NODE_H = 50;
 
-const STEP_INFO: StepInfo[] = [
-  {
-    title: "File-Based Tasks",
-    description:
-      "Tasks are stored in JSON files on disk. They survive context compaction -- unlike in-memory state.",
+interface TaskSystemCopy {
+  title: string;
+  stepInfo: StepInfo[];
+  taskLabels: Record<string, string>;
+  statuses: Record<TaskStatus, string>;
+  blocked: string;
+  taskDag: string;
+  persisted: string;
+  survives: string;
+}
+
+const COPY: Record<string, TaskSystemCopy> = {
+  en: {
+    title: "Task Dependency Graph",
+    stepInfo: [
+      { title: "File-Based Tasks", description: "Tasks are stored in JSON files on disk. They survive context compaction -- unlike in-memory state." },
+      { title: "Start T1", description: "Tasks without dependencies can start immediately. T1 has no blockers." },
+      { title: "T1 Complete", description: "Completing T1 unblocks its dependents: T2 and T3." },
+      { title: "Parallel Work", description: "T2 and T3 have no dependency on each other. Both can run simultaneously." },
+      { title: "Partial Unblock", description: "T4 depends on BOTH T2 and T3. It waits for all blockers to complete." },
+      { title: "Fully Unblocked", description: "All blockers resolved. T4 can now proceed." },
+      { title: "Graph Resolved", description: "The entire dependency graph is resolved. File-based persistence means this works across context compressions." },
+    ],
+    taskLabels: {
+      T1: "T1: Setup DB",
+      T2: "T2: API routes",
+      T3: "T3: Auth module",
+      T4: "T4: Integration",
+      T5: "T5: Deploy",
+    },
+    statuses: {
+      pending: "pending",
+      in_progress: "in_progress",
+      completed: "done",
+      blocked: "blocked",
+    },
+    blocked: "Blocked: waiting on T3",
+    taskDag: "Task DAG",
+    persisted: "Persisted to disk",
+    survives: "survives context compaction",
   },
-  {
-    title: "Start T1",
-    description:
-      "Tasks without dependencies can start immediately. T1 has no blockers.",
+  ru: {
+    title: "Граф зависимостей задач",
+    stepInfo: [
+      { title: "Файловые задачи", description: "Задачи хранятся в JSON-файлах на диске. В отличие от состояния в памяти, они переживают сжатие контекста." },
+      { title: "Старт T1", description: "Задачи без зависимостей можно запускать сразу. У T1 нет блокеров." },
+      { title: "T1 завершена", description: "Завершение T1 разблокирует зависимые задачи: T2 и T3." },
+      { title: "Параллельная работа", description: "T2 и T3 не зависят друг от друга, поэтому могут идти одновременно." },
+      { title: "Частичная разблокировка", description: "T4 зависит И от T2, и от T3. Она ждёт, пока завершатся все блокеры." },
+      { title: "Полностью разблокирована", description: "Все блокеры сняты. Теперь T4 может продолжаться." },
+      { title: "Граф разрешён", description: "Весь граф зависимостей закрыт. Файловая персистентность сохраняет это даже после сжатия контекста." },
+    ],
+    taskLabels: {
+      T1: "T1: Настроить БД",
+      T2: "T2: API-маршруты",
+      T3: "T3: Модуль auth",
+      T4: "T4: Интеграция",
+      T5: "T5: Деплой",
+    },
+    statuses: {
+      pending: "ожидает",
+      in_progress: "в работе",
+      completed: "готово",
+      blocked: "заблокировано",
+    },
+    blocked: "Блокировано: ждём T3",
+    taskDag: "Граф задач",
+    persisted: "Сохранено на диск",
+    survives: "переживает сжатие контекста",
   },
-  {
-    title: "T1 Complete",
-    description: "Completing T1 unblocks its dependents: T2 and T3.",
-  },
-  {
-    title: "Parallel Work",
-    description:
-      "T2 and T3 have no dependency on each other. Both can run simultaneously.",
-  },
-  {
-    title: "Partial Unblock",
-    description:
-      "T4 depends on BOTH T2 and T3. It waits for all blockers to complete.",
-  },
-  {
-    title: "Fully Unblocked",
-    description: "All blockers resolved. T4 can now proceed.",
-  },
-  {
-    title: "Graph Resolved",
-    description:
-      "The entire dependency graph is resolved. File-based persistence means this works across context compressions.",
-  },
-];
+};
 
 function getTaskStatus(taskId: string, step: number): TaskStatus {
   const statusMap: Record<string, TaskStatus[]> = {
@@ -169,16 +206,17 @@ function getStatusColor(status: TaskStatus) {
   }
 }
 
-function getStatusLabel(status: TaskStatus): string {
+function getStatusLabel(status: TaskStatus, locale: string): string {
+  const copy = COPY[locale] || COPY.en;
   switch (status) {
     case "pending":
-      return "pending";
+      return copy.statuses.pending;
     case "in_progress":
-      return "in_progress";
+      return copy.statuses.in_progress;
     case "completed":
-      return "done";
+      return copy.statuses.completed;
     case "blocked":
-      return "blocked";
+      return copy.statuses.blocked;
   }
 }
 
@@ -193,6 +231,8 @@ function buildCurvePath(
 }
 
 export default function TaskSystem({ title }: { title?: string }) {
+  const locale = useLocale();
+  const copy = COPY[locale] || COPY.en;
   const {
     currentStep,
     totalSteps,
@@ -232,16 +272,16 @@ export default function TaskSystem({ title }: { title?: string }) {
     return result;
   }, []);
 
-  const stepInfo = STEP_INFO[currentStep];
+  const stepInfo = copy.stepInfo[currentStep];
 
   return (
     <section className="min-h-[500px] space-y-4">
       <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-        {title || "Task Dependency Graph"}
+        {title || copy.title}
       </h2>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-        <svg viewBox="0 0 800 340" className="w-full" aria-label="Task DAG">
+        <svg viewBox="0 0 800 340" className="w-full" aria-label={copy.taskDag}>
           <defs>
             <marker
               id="arrowGray"
@@ -337,7 +377,7 @@ export default function TaskSystem({ title }: { title?: string }) {
           {TASKS.map((task) => {
             const status = getTaskStatus(task.id, currentStep);
             const colors = getStatusColor(status);
-            const statusLabel = getStatusLabel(status);
+            const statusLabel = getStatusLabel(status, locale);
             const isActive = status === "in_progress";
             const isComplete = status === "completed";
 
@@ -369,7 +409,7 @@ export default function TaskSystem({ title }: { title?: string }) {
                   fontWeight="600"
                   fill={isDark ? colors.darkText : colors.text}
                 >
-                  {task.label}
+                  {copy.taskLabels[task.id]}
                 </text>
                 <text
                   x={task.x + NODE_W / 2}
@@ -413,7 +453,7 @@ export default function TaskSystem({ title }: { title?: string }) {
                 fontFamily="monospace"
                 fill={isDark ? "#f87171" : "#dc2626"}
               >
-                Blocked: waiting on T3
+                {copy.blocked}
               </text>
             </motion.g>
           )}
@@ -439,7 +479,7 @@ export default function TaskSystem({ title }: { title?: string }) {
               .tasks/tasks.json
             </span>
             <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-              Persisted to disk -- survives context compaction
+              {copy.persisted} -- {copy.survives}
             </span>
           </div>
           <motion.div
@@ -454,25 +494,25 @@ export default function TaskSystem({ title }: { title?: string }) {
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded bg-zinc-300 dark:bg-zinc-600" />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              pending
+              {copy.statuses.pending}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded bg-amber-400 dark:bg-amber-600" />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              in_progress
+              {copy.statuses.in_progress}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded bg-emerald-400 dark:bg-emerald-600" />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              completed
+              {copy.statuses.completed}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded bg-red-400 dark:bg-red-600" />
             <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-              blocked
+              {copy.statuses.blocked}
             </span>
           </div>
         </div>
